@@ -1,0 +1,248 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+model Setting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       String
+  description String?
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+model Material {
+  id               String   @id @default(cuid())
+  name             String
+  group            String
+  baseUnit         String   @map("base_unit")
+  purchaseUnit     String   @map("purchase_unit")
+  conversionFactor Decimal  @map("conversion_factor") @db.Decimal(12, 4)
+  minStock         Decimal  @map("min_stock") @db.Decimal(12, 4) @default(0)
+  avgCost          Decimal  @map("avg_cost") @db.Decimal(12, 2) @default(0)
+  currentStock     Decimal  @map("current_stock") @db.Decimal(12, 4) @default(0)
+  imageUrl         String?  @map("image_url")
+  note             String?
+  isDeleted        Boolean  @default(false) @map("is_deleted")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  purchaseLines      PurchaseLine[]
+  stockMovements     StockMovement[]
+  productMaterials   ProductMaterial[]
+  orderLineMaterials OrderLineMaterial[]
+
+  @@map("materials")
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  phone     String?
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  purchases Purchase[]
+
+  @@map("suppliers")
+}
+
+model Purchase {
+  id              String    @id @default(cuid())
+  date            DateTime  @db.Date
+  supplierId      String?   @map("supplier_id")
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  supplierName    String    @map("supplier_name")
+  shippingCost    Decimal   @map("shipping_cost") @db.Decimal(12, 0) @default(0)
+  totalAmount     Decimal   @map("total_amount") @db.Decimal(12, 0) @default(0)
+  note            String?
+  invoiceImageUrl String?   @map("invoice_image_url")
+  isDeleted       Boolean   @default(false) @map("is_deleted")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  lines PurchaseLine[]
+
+  @@map("purchases")
+}
+
+model PurchaseLine {
+  id           String   @id @default(cuid())
+  purchaseId   String   @map("purchase_id")
+  purchase     Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  materialId   String   @map("material_id")
+  material     Material @relation(fields: [materialId], references: [id])
+  quantity     Decimal  @db.Decimal(12, 4)
+  unitPrice    Decimal  @map("unit_price") @db.Decimal(12, 0)
+  lineTotal    Decimal  @map("line_total") @db.Decimal(12, 0)
+  convertedQty Decimal  @map("converted_qty") @db.Decimal(12, 4)
+
+  @@map("purchase_lines")
+}
+
+model StockMovement {
+  id         String   @id @default(cuid())
+  materialId String   @map("material_id")
+  material   Material @relation(fields: [materialId], references: [id])
+  type       String
+  quantity   Decimal  @db.Decimal(12, 4)
+  unitCost   Decimal  @map("unit_cost") @db.Decimal(12, 2) @default(0)
+  refType    String?  @map("ref_type")
+  refId      String?  @map("ref_id")
+  note       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([materialId])
+  @@index([refType, refId])
+  @@map("stock_movements")
+}
+
+model Product {
+  id              String   @id @default(cuid())
+  name            String
+  type            String   @default("template")
+  description     String?
+  imageUrl        String?  @map("image_url")
+  laborCost       Decimal  @map("labor_cost") @db.Decimal(12, 0) @default(0)
+  overheadPercent Decimal  @map("overhead_percent") @db.Decimal(5, 2) @default(0)
+  targetMargin    Decimal  @map("target_margin") @db.Decimal(5, 2) @default(40)
+  suggestedPrice  Decimal  @map("suggested_price") @db.Decimal(12, 0) @default(0)
+  stock           Int      @default(0)
+  isDeleted       Boolean  @default(false) @map("is_deleted")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  materials  ProductMaterial[]
+  orderLines OrderLine[]
+  movements  ProductMovement[]
+
+  @@map("products")
+}
+
+model ProductMaterial {
+  id         String   @id @default(cuid())
+  productId  String   @map("product_id")
+  product    Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  materialId String   @map("material_id")
+  material   Material @relation(fields: [materialId], references: [id])
+  quantity   Decimal  @db.Decimal(12, 4)
+
+  @@unique([productId, materialId])
+  @@map("product_materials")
+}
+
+model Customer {
+  id           String   @id @default(cuid())
+  name         String
+  phone        String?
+  address      String?
+  zaloLink     String?  @map("zalo_link")
+  facebookLink String?  @map("facebook_link")
+  note         String?
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  orders Order[]
+
+  @@map("customers")
+}
+
+model Order {
+  id                String    @id @default(cuid())
+  code              String    @unique
+  orderDate         DateTime  @map("order_date") @db.Date
+  channel           String
+  customerId        String?   @map("customer_id")
+  customer          Customer? @relation(fields: [customerId], references: [id])
+  customerName      String    @map("customer_name")
+  customerPhone     String?   @map("customer_phone")
+  status            String    @default("new")
+  deliveryType      String    @map("delivery_type") @default("pickup")
+  deliveryDate      DateTime? @map("delivery_date")
+  shippingFee       Decimal   @map("shipping_fee") @db.Decimal(12, 0) @default(0)
+  discount          Decimal   @db.Decimal(12, 0) @default(0)
+  channelFeePercent Decimal   @map("channel_fee_percent") @db.Decimal(5, 2) @default(0)
+  totalAmount       Decimal   @map("total_amount") @db.Decimal(12, 0) @default(0)
+  totalCost         Decimal   @map("total_cost") @db.Decimal(12, 0) @default(0)
+  paymentStatus     String    @map("payment_status") @default("unpaid")
+  depositAmount     Decimal   @map("deposit_amount") @db.Decimal(12, 0) @default(0)
+  paymentMethod     String?   @map("payment_method")
+  note              String?
+  referenceImageUrl String?   @map("reference_image_url")
+  finishedImageUrl  String?   @map("finished_image_url")
+  isDeleted         Boolean   @default(false) @map("is_deleted")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  lines OrderLine[]
+
+  @@index([orderDate])
+  @@index([status])
+  @@map("orders")
+}
+
+model OrderLine {
+  id           String    @id @default(cuid())
+  orderId      String    @map("order_id")
+  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId    String?   @map("product_id")
+  product      Product?  @relation(fields: [productId], references: [id])
+  productName  String    @map("product_name")
+  quantity     Int       @default(1)
+  unitPrice    Decimal   @map("unit_price") @db.Decimal(12, 0)
+  lineTotal    Decimal   @map("line_total") @db.Decimal(12, 0)
+  snapshotCost Decimal   @map("snapshot_cost") @db.Decimal(12, 0) @default(0)
+  isCustom     Boolean   @default(false) @map("is_custom")
+  fromStock    Boolean   @default(false) @map("from_stock")
+
+  materials OrderLineMaterial[]
+
+  @@map("order_lines")
+}
+
+model OrderLineMaterial {
+  id          String    @id @default(cuid())
+  orderLineId String    @map("order_line_id")
+  orderLine   OrderLine @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  materialId  String    @map("material_id")
+  material    Material  @relation(fields: [materialId], references: [id])
+  quantity    Decimal   @db.Decimal(12, 4)
+  unitCost    Decimal   @map("unit_cost") @db.Decimal(12, 2)
+
+  @@map("order_line_materials")
+}
+
+model ProductMovement {
+  id        String   @id @default(cuid())
+  productId String   @map("product_id")
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  type      String   // 'produce' (bó sẵn vào kho), 'sell' (bán cho đơn), 'return' (hoàn trả), 'damage' (hỏng/hao hụt), 'adjustment' (kiểm kê)
+  quantity  Int      // số lượng (+ / -)
+  unitCost  Decimal  @map("unit_cost") @db.Decimal(12, 0) @default(0)
+  refType   String?  @map("ref_type") // 'order', 'manual', 'damage'
+  refId     String?  @map("ref_id")
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([productId])
+  @@index([refType, refId])
+  @@map("product_movements")
+}
+

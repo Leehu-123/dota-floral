@@ -1,0 +1,24 @@
+{
+  "name": "Dota Floral - Quản lý tiệm hoa",
+  "short_name": "Dota Floral",
+  "description": "Ứng dụng quản lý tiệm hoa handmade Dota Floral",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fff1f2",
+  "theme_color": "#e11d48",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

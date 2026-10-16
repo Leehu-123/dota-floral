@@ -1,0 +1,36 @@
+# Caddyfile cho Dota Floral - Tự động cấp SSL/HTTPS miễn phí
+# Khi có tên miền (vd: dotafloral.vn), thay thế :80 bên dưới bằng tên miền của bạn:
+# Ví dụ:
+# dotafloral.vn {
+#     reverse_proxy app:3000
+# }
+
+{$APP_DOMAIN::80} {
+    reverse_proxy app:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote_host}
+        header_up X-Forwarded-For {remote_host}
+        header_up X-Forwarded-Proto {scheme}
+    }
+
+    # Bật nén gzip & zstd
+    encode gzip zstd
+
+    # Giới hạn kích thước tải lên (ảnh sản phẩm/hóa đơn)
+    request_body {
+        max_size 15MB
+    }
+
+    # Cache cho static assets
+    @static {
+        path /_next/static/* /icons/* /manifest.json
+    }
+    header @static Cache-Control "public, max-age=31536000, immutable"
+
+    # Bảo mật tiêu chuẩn
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+    }
+}
