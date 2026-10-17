@@ -97,6 +97,10 @@ export default function SettingsPage() {
         });
       }
 
+      if (incoming['bank_id'] === 'CTG') {
+        incoming['bank_id'] = 'ICB';
+      }
+
       setForm((prev) => ({
         ...prev,
         ...incoming,
@@ -268,10 +272,12 @@ export default function SettingsPage() {
                 <SelectTrigger id="bank_id" className="h-11 rounded-xl text-sm bg-white">
                   <SelectValue placeholder="Chọn ngân hàng" />
                 </SelectTrigger>
-                <SelectContent className="max-h-64">
+                <SelectContent className="max-h-72">
                   {POPULAR_BANKS.map((b) => (
                     <SelectItem key={b.id} value={b.id}>
-                      <span className="font-semibold">{b.id}</span> - {b.name}
+                      <span className="font-bold text-rose-700">{b.shortName}</span>
+                      <span className="text-gray-400 mx-1.5">•</span>
+                      <span className="text-gray-700 text-xs">{b.name}</span>
                     </SelectItem>
                   ))}
                 </SelectContent>

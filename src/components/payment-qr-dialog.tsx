@@ -10,7 +10,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getVietQRUrl, POPULAR_BANKS } from '@/lib/vietqr';
+import { getVietQRUrl, findBank } from '@/lib/vietqr';
 import { formatVND } from '@/lib/format';
 import { toast } from 'sonner';
 import { Copy, CheckCircle2, QrCode, AlertCircle, ExternalLink } from 'lucide-react';
@@ -117,7 +117,7 @@ export function PaymentQrDialog({
     }
   };
 
-  const bankObj = POPULAR_BANKS.find((b) => b.id === bankSettings?.bankId);
+  const bankObj = findBank(bankSettings?.bankId);
   const qrUrl = bankSettings
     ? getVietQRUrl({
         bankId: bankSettings.bankId,
