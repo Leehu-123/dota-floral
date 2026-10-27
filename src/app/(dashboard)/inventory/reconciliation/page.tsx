@@ -507,7 +507,7 @@ export default function ReconciliationPage() {
               <Input
                 value={periodName}
                 onChange={(e) => setPeriodName(e.target.value)}
-                placeholder="VD: Đợt 20/10"
+                placeholder="VD: Đợt 20/10, 8/3, Tết..."
                 className="h-10 rounded-xl text-sm"
               />
             </div>

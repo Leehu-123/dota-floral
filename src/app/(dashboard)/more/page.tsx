@@ -79,14 +79,6 @@ const quickActions: QuickAction[] = [
     color: 'text-indigo-600',
     bgColor: 'bg-indigo-50 border-indigo-100',
   },
-  {
-    href: '/inventory/reconciliation',
-    label: 'Cân đối sau bán',
-    desc: 'Hóa đơn nhập & kiểm kê',
-    icon: Calculator,
-    color: 'text-rose-600',
-    bgColor: 'bg-rose-50 border-rose-100',
-  },
 ];
 
 export default function MorePage() {
@@ -188,7 +180,40 @@ export default function MorePage() {
         </div>
       </div>
 
-      {/* 3. Shop App Information Card */}
+      {/* 3. TIỆN ÍCH DỊP LỄ & ĐỢT BÁN LỚN */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between px-1">
+          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+            Nghiệp vụ sự kiện & đợt bán lớn
+          </h3>
+          <Badge variant="outline" className="text-[10px] text-amber-700 bg-amber-50 border-amber-200">
+            Dùng khi cao điểm
+          </Badge>
+        </div>
+
+        <Link href="/inventory/reconciliation">
+          <Card className="rounded-xl border border-gray-100 bg-white hover:border-rose-200 hover:shadow-xs transition-all active:scale-[0.99]">
+            <CardContent className="p-3.5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                  <Calculator className="w-5 h-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h4 className="text-sm font-semibold text-gray-900">
+                    Cân đối sau đợt bán lớn
+                  </h4>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">
+                    Dành cho các đợt lễ bận rộn (20/10, 8/3, Valentine...) tính cost từ hóa đơn & kiểm kê
+                  </p>
+                </div>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400 shrink-0 ml-2" />
+            </CardContent>
+          </Card>
+        </Link>
+      </div>
+
+      {/* 4. Shop App Information Card */}
       <Card className="rounded-xl border border-rose-100/60 bg-linear-to-r from-rose-50/40 via-white to-rose-50/20">
         <CardContent className="p-4 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-white border border-rose-200 text-rose-600 flex items-center justify-center shadow-xs">

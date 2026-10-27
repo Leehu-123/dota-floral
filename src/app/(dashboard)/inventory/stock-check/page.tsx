@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import {
   ArrowLeft,
   CheckCircle2,
@@ -13,6 +14,7 @@ import {
   TrendingDown,
   TrendingUp,
   PackageCheck,
+  ChevronRight,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -241,6 +243,24 @@ export default function StockCheckPage() {
           Nhập số lượng thực tế tại tiệm để cân bằng tồn kho hệ thống
         </p>
       </div>
+
+      {/* Banner cân đối sau đợt bán lớn (nếu có phát sinh) */}
+      <Link href="/inventory/reconciliation">
+        <div className="bg-rose-50/70 hover:bg-rose-50 border border-rose-200/70 rounded-xl p-3 flex items-center justify-between text-xs transition-colors">
+          <div className="flex items-center gap-2.5">
+            <span className="text-base">💡</span>
+            <div>
+              <p className="font-semibold text-rose-800">
+                Vừa qua đợt lễ bận rộn chưa kịp tạo đơn lẻ?
+              </p>
+              <p className="text-[11px] text-rose-600 mt-0.5">
+                Dùng công cụ Cân đối theo hóa đơn & tồn cuối để tự tính giá vốn
+              </p>
+            </div>
+          </div>
+          <ChevronRight className="w-4 h-4 text-rose-500 shrink-0 ml-2" />
+        </div>
+      </Link>
 
       {/* Summary Card */}
       <Card
