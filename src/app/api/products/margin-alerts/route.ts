@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { computeProductCosts } from '@/lib/product-calc';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     // 1. Lấy ngưỡng cảnh báo biên lợi nhuận từ Settings (mặc định 20%)

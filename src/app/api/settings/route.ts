@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest) {
   try {
     const settings = await prisma.setting.findMany({
       orderBy: { key: 'asc' },
@@ -22,7 +24,7 @@ export async function GET() {
   }
 }
 
-export async function PUT(request: NextRequest) {
+async function updateSettings(request: NextRequest) {
   try {
     const body = await request.json();
 
@@ -46,10 +48,10 @@ export async function PUT(request: NextRequest) {
       entries.map(([key, value]) =>
         prisma.setting.upsert({
           where: { key },
-          update: { value: String(value) },
+          update: { value: String(value ?? '') },
           create: {
             key,
-            value: String(value),
+            value: String(value ?? ''),
           },
         })
       )
@@ -72,4 +74,12 @@ export async function PUT(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+export async function PUT(request: NextRequest) {
+  return updateSettings(request);
+}
+
+export async function POST(request: NextRequest) {
+  return updateSettings(request);
 }
