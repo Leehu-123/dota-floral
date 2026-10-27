@@ -8,6 +8,7 @@ import {
   ShoppingCart,
   ClipboardCheck,
   FileText,
+  Calculator,
   Settings,
   FileSpreadsheet,
   ChevronRight,
@@ -77,6 +78,14 @@ const quickActions: QuickAction[] = [
     icon: FileText,
     color: 'text-indigo-600',
     bgColor: 'bg-indigo-50 border-indigo-100',
+  },
+  {
+    href: '/inventory/reconciliation',
+    label: 'Cân đối sau bán',
+    desc: 'Hóa đơn nhập & kiểm kê',
+    icon: Calculator,
+    color: 'text-rose-600',
+    bgColor: 'bg-rose-50 border-rose-100',
   },
 ];
 

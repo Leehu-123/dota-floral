@@ -9,6 +9,7 @@ import {
   ClipboardList,
   Download,
   AlertTriangle,
+  Calculator,
   Layers,
   Flower2,
   Package,
@@ -416,29 +417,41 @@ export default function InventoryPage() {
           </div>
 
           {/* Bottom Action Buttons for Raw Materials */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="space-y-2.5 pt-2">
             <Button
-              variant="outline"
-              size="lg"
-              className="w-full rounded-xl h-12 border-gray-200 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 shadow-xs active:scale-[0.98]"
+              className="w-full rounded-xl h-12 bg-rose-600 hover:bg-rose-700 text-white shadow-xs font-semibold active:scale-[0.98]"
               asChild
             >
-              <Link href="/inventory/stock-check">
-                <ClipboardList className="w-5 h-5 mr-2 text-rose-600" />
-                Kiểm kho NVL
+              <Link href="/inventory/reconciliation">
+                <Calculator className="w-5 h-5 mr-2" />
+                Cân đối kho sau đợt bán (20/10)
               </Link>
             </Button>
-            <Button
-              variant="outline"
-              size="lg"
-              className="w-full rounded-xl h-12 border-gray-200 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 shadow-xs active:scale-[0.98]"
-              asChild
-            >
-              <Link href="/purchases/new">
-                <Download className="w-5 h-5 mr-2 text-rose-600" />
-                Nhập hàng NVL
-              </Link>
-            </Button>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full rounded-xl h-11 border-gray-200 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 shadow-xs active:scale-[0.98]"
+                asChild
+              >
+                <Link href="/inventory/stock-check">
+                  <ClipboardList className="w-4 h-4 mr-1.5 text-rose-600" />
+                  Kiểm kho NVL
+                </Link>
+              </Button>
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full rounded-xl h-11 border-gray-200 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 shadow-xs active:scale-[0.98]"
+                asChild
+              >
+                <Link href="/purchases/new">
+                  <Download className="w-4 h-4 mr-1.5 text-rose-600" />
+                  Nhập hàng NVL
+                </Link>
+              </Button>
+            </div>
           </div>
         </div>
       )}
