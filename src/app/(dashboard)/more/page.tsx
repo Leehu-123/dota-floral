@@ -104,7 +104,7 @@ export default function MorePage() {
             const Icon = action.icon;
             return (
               <Link key={action.href} href={action.href} className="group">
-                <Card className="rounded-xl border border-gray-100 bg-white hover:border-rose-200 hover:shadow-sm transition-all h-full active:scale-[0.98]">
+                <Card className="rounded-xl border border-gray-100 bg-white hover:border-purple-300 hover:shadow-sm transition-all h-full active:scale-[0.98]">
                   <CardContent className="p-3.5 flex flex-col justify-between h-full space-y-2.5">
                     <div
                       className={`w-10 h-10 rounded-xl flex items-center justify-center border ${action.bgColor} ${action.color} group-hover:scale-105 transition-transform`}
@@ -112,7 +112,7 @@ export default function MorePage() {
                       <Icon className="w-5 h-5" />
                     </div>
                     <div>
-                      <h4 className="text-sm font-semibold text-gray-900 leading-tight group-hover:text-rose-600 transition-colors">
+                      <h4 className="text-sm font-bold text-gray-900 leading-tight group-hover:text-purple-950 transition-colors">
                         {action.label}
                       </h4>
                       <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-1">
@@ -136,14 +136,14 @@ export default function MorePage() {
         <div className="space-y-2">
           {/* Cài đặt chung */}
           <Link href="/settings">
-            <Card className="rounded-xl border border-gray-100 bg-white hover:border-rose-200 hover:shadow-xs transition-all active:scale-[0.99]">
+            <Card className="rounded-xl border border-gray-100 bg-white hover:border-purple-300 hover:shadow-xs transition-all active:scale-[0.99]">
               <CardContent className="p-3.5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-[#d4c8ee]/40 border border-purple-200 text-purple-800 flex items-center justify-center">
                     <Settings className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900">
+                    <h4 className="text-sm font-bold text-gray-900">
                       Cài đặt chung
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -158,14 +158,14 @@ export default function MorePage() {
 
           {/* Báo cáo & Xuất dữ liệu */}
           <Link href="/reports">
-            <Card className="rounded-xl border border-gray-100 bg-white hover:border-rose-200 hover:shadow-xs transition-all active:scale-[0.99]">
+            <Card className="rounded-xl border border-gray-100 bg-white hover:border-purple-300 hover:shadow-xs transition-all active:scale-[0.99]">
               <CardContent className="p-3.5 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center">
                     <FileSpreadsheet className="w-5 h-5" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-semibold text-gray-900">
+                    <h4 className="text-sm font-bold text-gray-900">
                       Báo cáo & Xuất dữ liệu
                     </h4>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -186,20 +186,20 @@ export default function MorePage() {
           <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
             Nghiệp vụ sự kiện & đợt bán lớn
           </h3>
-          <Badge variant="outline" className="text-[10px] text-amber-700 bg-amber-50 border-amber-200">
+          <Badge variant="outline" className="text-[10px] text-purple-900 bg-[#d4c8ee]/50 border-purple-300 font-bold">
             Dùng khi cao điểm
           </Badge>
         </div>
 
         <Link href="/inventory/reconciliation">
-          <Card className="rounded-xl border border-gray-100 bg-white hover:border-rose-200 hover:shadow-xs transition-all active:scale-[0.99]">
+          <Card className="rounded-xl border border-gray-100 bg-white hover:border-purple-300 hover:shadow-xs transition-all active:scale-[0.99]">
             <CardContent className="p-3.5 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-xl bg-[#d4c8ee]/40 border border-purple-200 text-purple-800 flex items-center justify-center shrink-0">
                   <Calculator className="w-5 h-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h4 className="text-sm font-semibold text-gray-900">
+                  <h4 className="text-sm font-bold text-gray-900">
                     Cân đối sau đợt bán lớn
                   </h4>
                   <p className="text-[11px] text-muted-foreground mt-0.5">
@@ -214,13 +214,13 @@ export default function MorePage() {
       </div>
 
       {/* 4. Shop App Information Card */}
-      <Card className="rounded-xl border border-rose-100/60 bg-linear-to-r from-rose-50/40 via-white to-rose-50/20">
+      <Card className="rounded-xl border border-purple-200/80 bg-linear-to-r from-[#d4c8ee]/25 via-white to-purple-50/20">
         <CardContent className="p-4 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-white border border-rose-200 text-rose-600 flex items-center justify-center shadow-xs">
+          <div className="w-10 h-10 rounded-xl bg-white border border-purple-200 text-purple-800 flex items-center justify-center shadow-xs">
             <Store className="w-5 h-5" />
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="text-xs font-bold text-gray-900">
+            <h4 className="text-xs font-bold text-purple-950">
               Dota Floral v1.0 • Bắc Hà
             </h4>
             <p className="text-[11px] text-muted-foreground mt-0.5">

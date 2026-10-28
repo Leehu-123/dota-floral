@@ -39,12 +39,12 @@ export function BottomNav() {
               className={cn(
                 'flex-1 flex flex-col items-center py-2 pt-2.5 transition-colors min-h-[56px]',
                 isActive
-                  ? 'text-purple-600'
+                  ? 'text-purple-800'
                   : 'text-gray-400 active:text-gray-600'
               )}
             >
               <tab.icon className={cn('w-6 h-6', isActive && 'stroke-[2.5]')} />
-              <span className={cn('text-[10px] mt-1', isActive && 'font-semibold')}>
+              <span className={cn('text-[10px] mt-1', isActive ? 'font-bold text-purple-950' : 'text-gray-500 font-medium')}>
                 {tab.label}
               </span>
             </Link>

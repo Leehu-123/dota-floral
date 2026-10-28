@@ -4,8 +4,8 @@
   "description": "Ứng dụng quản lý tiệm hoa handmade Dota Floral",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#faf5ff",
-  "theme_color": "#9333ea",
+  "background_color": "#f9f7fd",
+  "theme_color": "#7249b5",
   "orientation": "portrait-primary",
   "icons": [
     {

@@ -421,22 +421,22 @@ export default function InventoryPage() {
             <Button
               variant="outline"
               size="lg"
-              className="w-full rounded-xl h-12 border-gray-200 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 shadow-xs active:scale-[0.98]"
+              className="w-full rounded-xl h-12 border-purple-200/80 bg-white hover:bg-[#d4c8ee]/30 hover:text-purple-950 hover:border-purple-300 text-purple-950 font-bold shadow-xs active:scale-[0.98]"
               asChild
             >
               <Link href="/inventory/stock-check">
-                <ClipboardList className="w-5 h-5 mr-2 text-rose-600" />
+                <ClipboardList className="w-5 h-5 mr-2 text-purple-700" />
                 Kiểm kho NVL
               </Link>
             </Button>
             <Button
               variant="outline"
               size="lg"
-              className="w-full rounded-xl h-12 border-gray-200 bg-white hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200 shadow-xs active:scale-[0.98]"
+              className="w-full rounded-xl h-12 border-purple-200/80 bg-white hover:bg-[#d4c8ee]/30 hover:text-purple-950 hover:border-purple-300 text-purple-950 font-bold shadow-xs active:scale-[0.98]"
               asChild
             >
               <Link href="/purchases/new">
-                <Download className="w-5 h-5 mr-2 text-rose-600" />
+                <Download className="w-5 h-5 mr-2 text-purple-700" />
                 Nhập hàng NVL
               </Link>
             </Button>

@@ -175,34 +175,34 @@ export default function DashboardPage() {
         <div className="lg:col-span-5 space-y-4">
           {/* 2. Quick Action Buttons */}
           <div className="grid grid-cols-3 gap-2.5">
-        <Link href="/orders/new" className="w-full">
-          <Button className="w-full h-12 rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm flex flex-col items-center justify-center py-1 gap-0.5">
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-            <span className="text-xs font-semibold">Tạo đơn</span>
-          </Button>
-        </Link>
-        <Link href="/purchases/new" className="w-full">
-          <Button
-            variant="outline"
-            className="w-full h-12 rounded-xl border-gray-200 bg-white hover:bg-rose-50 hover:border-rose-200 text-gray-800 flex flex-col items-center justify-center py-1 gap-0.5"
-          >
-            <ArrowDownToLine className="w-4 h-4 text-rose-600" />
-            <span className="text-xs font-semibold">Nhập hàng</span>
-          </Button>
-        </Link>
-        <Link href="/inventory" className="w-full">
-          <Button
-            variant="outline"
-            className="w-full h-12 rounded-xl border-gray-200 bg-white hover:bg-rose-50 hover:border-rose-200 text-gray-800 flex flex-col items-center justify-center py-1 gap-0.5"
-          >
-            <ClipboardCheck className="w-4 h-4 text-rose-600" />
-            <span className="text-xs font-semibold">Kiểm kho</span>
-          </Button>
-        </Link>
-      </div>
+            <Link href="/orders/new" className="w-full">
+              <Button className="w-full h-12 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black shadow-sm flex flex-col items-center justify-center py-1 gap-0.5 active:scale-95">
+                <Plus className="w-4 h-4 stroke-[3]" />
+                <span className="text-xs font-bold">Tạo đơn</span>
+              </Button>
+            </Link>
+            <Link href="/purchases/new" className="w-full">
+              <Button
+                variant="outline"
+                className="w-full h-12 rounded-xl border-purple-200/80 bg-white hover:bg-[#d4c8ee]/30 hover:border-purple-300 text-purple-950 font-bold flex flex-col items-center justify-center py-1 gap-0.5 active:scale-95"
+              >
+                <ArrowDownToLine className="w-4 h-4 text-purple-700" />
+                <span className="text-xs font-bold text-purple-950">Nhập hàng</span>
+              </Button>
+            </Link>
+            <Link href="/inventory" className="w-full">
+              <Button
+                variant="outline"
+                className="w-full h-12 rounded-xl border-purple-200/80 bg-white hover:bg-[#d4c8ee]/30 hover:border-purple-300 text-purple-950 font-bold flex flex-col items-center justify-center py-1 gap-0.5 active:scale-95"
+              >
+                <ClipboardCheck className="w-4 h-4 text-purple-700" />
+                <span className="text-xs font-bold text-purple-950">Kiểm kho</span>
+              </Button>
+            </Link>
+          </div>
 
       {/* 3. Quick Period Selector & KPI Card */}
-      <Card className="rounded-2xl border-rose-100 shadow-sm overflow-hidden bg-gradient-to-br from-white via-white to-rose-50/40">
+      <Card className="rounded-2xl border-purple-200/80 shadow-sm overflow-hidden bg-gradient-to-br from-white via-[#f9f7fd] to-[#d4c8ee]/30">
         <CardContent className="p-4 space-y-4">
           {/* Period Tabs */}
           <div className="flex bg-gray-100/80 p-1 rounded-xl">
@@ -219,7 +219,7 @@ export default function DashboardPage() {
                 onClick={() => setPeriod(t.key)}
                 className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                   period === t.key
-                    ? 'bg-white text-rose-600 shadow-sm'
+                    ? 'bg-white text-purple-950 shadow-sm font-bold'
                     : 'text-gray-500 hover:text-gray-900'
                 }`}
               >
@@ -242,16 +242,16 @@ export default function DashboardPage() {
               <div>
                 <p className="text-xs font-medium text-muted-foreground flex items-center justify-between">
                   <span>Doanh thu {period === 'today' ? 'hôm nay' : period === 'week' ? 'tuần này' : 'tháng này'}</span>
-                  <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-full">
+                  <span className="text-[11px] font-bold text-purple-950 bg-[#d4c8ee]/70 border border-purple-200 px-2 py-0.5 rounded-full">
                     {activeMetric.orderCount} đơn hàng
                   </span>
                 </p>
-                <p className="text-2xl font-black text-rose-600 tracking-tight mt-1">
+                <p className="text-2xl font-black text-purple-950 tracking-tight mt-1">
                   {formatVND(activeMetric.revenue)}
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5 pt-1 border-t border-rose-100/60">
+              <div className="grid grid-cols-2 gap-2.5 pt-1 border-t border-purple-100">
                 <div className="bg-emerald-50/70 border border-emerald-100 p-2.5 rounded-xl">
                   <p className="text-[11px] font-medium text-emerald-800">Lãi gộp ước tính</p>
                   <p className="text-base font-bold text-emerald-700 mt-0.5">
@@ -266,7 +266,7 @@ export default function DashboardPage() {
                   <p className="text-[11px] font-medium text-gray-500">Xem chi tiết báo cáo</p>
                   <Link
                     href="/reports"
-                    className="text-xs font-semibold text-rose-600 hover:text-rose-700 flex items-center gap-1 mt-1 group"
+                    className="text-xs font-bold text-purple-800 hover:text-purple-950 flex items-center gap-1 mt-1 group"
                   >
                     <span>Vào trang báo cáo</span>
                     <ChevronRight className="w-3.5 h-3.5 transition-transform group-hover:translate-x-0.5" />

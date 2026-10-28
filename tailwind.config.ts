@@ -1,5 +1,20 @@
 import type { Config } from "tailwindcss";
-import colors from "tailwindcss/colors";
+
+// Soft Lavender palette sampled directly from user's reference image (#d4c8ee)
+// Engineered with deep contrast shades (700/800/900/950) so text is strikingly prominent
+const softLavender = {
+  50: '#f9f7fd',
+  100: '#f1ebfa',
+  200: '#d4c8ee', // Exact user sample: Soft Lavender
+  300: '#c0aee4',
+  400: '#a68dd6',
+  500: '#8c6bc6',
+  600: '#7249b5', // Primary action button (6.25:1 contrast with white text)
+  700: '#5c359a', // Prominent text on light backgrounds (AAA contrast)
+  800: '#4a2680', // Deep headers & titles (10:1+ contrast)
+  900: '#381a66', // Maximum contrast text & key amounts
+  950: '#250e47', // Ultra-bold deep plum
+};
 
 const config: Config = {
   darkMode: ["class"],
@@ -11,7 +26,9 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        rose: colors.purple,
+        rose: softLavender,
+        purple: softLavender,
+        lavender: softLavender,
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

@@ -32,27 +32,27 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-100/70 via-purple-50 to-indigo-50/60 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#d4c8ee]/60 via-[#f9f7fd] to-[#d4c8ee]/40 p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">🌸</div>
-          <h1 className="text-2xl font-bold text-purple-900">Dota Floral</h1>
-          <p className="text-sm text-purple-600 mt-1">Quản lý tiệm hoa</p>
+          <h1 className="text-2xl font-black text-purple-950 tracking-tight">Dota Floral</h1>
+          <p className="text-sm text-purple-800 font-semibold mt-1">Quản lý tiệm hoa</p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white/85 backdrop-blur-sm rounded-2xl shadow-lg border border-purple-100/50 p-6 space-y-4"
+          className="bg-white/90 backdrop-blur-md rounded-2xl shadow-xl border border-purple-200/80 p-6 space-y-4"
         >
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-bold text-purple-950 mb-1.5">
               Email
             </label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition-shadow"
+              className="w-full rounded-xl border border-purple-200 px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-shadow bg-white"
               placeholder="email@dotafloral.com"
               required
               autoComplete="email"
@@ -60,14 +60,14 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-bold text-purple-950 mb-1.5">
               Mật khẩu
             </label>
             <input
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition-shadow"
+              className="w-full rounded-xl border border-purple-200 px-4 py-3 text-base text-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-400 focus:border-purple-400 transition-shadow bg-white"
               placeholder="••••••••"
               required
               autoComplete="current-password"
@@ -83,7 +83,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-purple-600 text-white rounded-xl py-3.5 font-semibold text-base hover:bg-purple-700 active:bg-purple-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+            className="w-full bg-purple-600 text-white rounded-xl py-3.5 font-bold text-base hover:bg-purple-700 active:bg-purple-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-md"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -99,7 +99,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-purple-400 mt-6">
+        <p className="text-center text-xs text-purple-800 font-semibold mt-6">
           Dota Floral • TT. Bắc Hà, Lào Cai
         </p>
       </div>
