@@ -83,7 +83,7 @@ export default function NewPurchasePage() {
 
   // Lines state
   const [lines, setLines] = useState<PurchaseLineForm[]>([
-    { materialId: '', quantity: '1', unitPrice: '' },
+    { materialId: '', quantity: '', unitPrice: '' },
   ]);
 
   const [submitting, setSubmitting] = useState(false);
@@ -148,7 +148,7 @@ export default function NewPurchasePage() {
   const handleAddLine = () => {
     setLines((prev) => [
       ...prev,
-      { materialId: '', quantity: '1', unitPrice: '' },
+      { materialId: '', quantity: '', unitPrice: '' },
     ]);
   };
 
@@ -226,7 +226,9 @@ export default function NewPurchasePage() {
   const calculatedLines = useMemo(() => {
     return lines.map((line) => {
       const material = materials.find((m) => m.id === line.materialId);
-      const qty = parseFloat(line.quantity) || 0;
+      const qty = line.quantity
+        ? parseFloat(line.quantity.replace(',', '.')) || 0
+        : 0;
       // Parse unit price in "ngàn đồng" -> multiply by 1,000 for VND
       const rawPrice = line.unitPrice
         ? parseFloat(line.unitPrice.replace(',', '.'))
@@ -281,7 +283,11 @@ export default function NewPurchasePage() {
         toast.error(`Mặt hàng #${i + 1}: Vui lòng chọn nguyên liệu`);
         return;
       }
-      const qty = parseFloat(line.quantity);
+      if (!line.quantity.trim()) {
+        toast.error(`Mặt hàng #${i + 1}: Vui lòng nhập số lượng`);
+        return;
+      }
+      const qty = parseFloat(line.quantity.replace(',', '.'));
       if (isNaN(qty) || qty <= 0) {
         toast.error(`Mặt hàng #${i + 1}: Số lượng nhập phải lớn hơn 0`);
         return;
@@ -309,9 +315,10 @@ export default function NewPurchasePage() {
         lines: lines.map((l) => {
           const rawPrice = parseFloat(l.unitPrice.replace(',', '.')) || 0;
           const unitPriceVND = Math.round(rawPrice * 1000);
+          const qty = parseFloat(l.quantity.replace(',', '.')) || 0;
           return {
             materialId: l.materialId,
-            quantity: parseFloat(l.quantity),
+            quantity: qty,
             unitPrice: unitPriceVND,
           };
         }),
@@ -593,15 +600,13 @@ export default function NewPurchasePage() {
                         <span className="text-red-500">*</span>
                       </Label>
                       <Input
-                        type="number"
-                        step="any"
-                        min="0.0001"
+                        type="text"
                         inputMode="decimal"
                         value={line.quantity}
                         onChange={(e) =>
                           handleLineChange(idx, 'quantity', e.target.value)
                         }
-                        placeholder="1"
+                        placeholder="Nhập SL"
                         className="h-11 rounded-xl font-bold text-gray-900 focus-visible:ring-purple-500"
                       />
                     </div>

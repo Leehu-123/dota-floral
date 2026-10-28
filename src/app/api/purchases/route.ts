@@ -140,95 +140,102 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const createdPurchase = await prisma.$transaction(async (tx) => {
-      // 1. Tìm hoặc tạo Nhà cung cấp theo tên (upsert)
-      const trimmedSupplierName = supplierName.trim();
-      const supplier = await tx.supplier.upsert({
-        where: { name: trimmedSupplierName },
-        update: {},
-        create: { name: trimmedSupplierName },
-      });
+    // Tăng timeout transaction lên 60 giây và batch queries để hỗ trợ đơn nhập lớn (30+ mặt hàng)
+    const createdPurchase = await prisma.$transaction(
+      async (tx) => {
+        // 1. Tìm hoặc tạo Nhà cung cấp theo tên (upsert)
+        const trimmedSupplierName = supplierName.trim();
+        const supplier = await tx.supplier.upsert({
+          where: { name: trimmedSupplierName },
+          update: {},
+          create: { name: trimmedSupplierName },
+        });
 
-      // 2. Lấy thông tin các vật tư và tính toán từng line
-      const preparedLines = [];
-      let linesTotalSum = 0;
-
-      for (const line of lines) {
-        const material = await tx.material.findFirst({
+        // 2. Batch query: Lấy tất cả vật tư trong 1 câu truy vấn duy nhất thay vì N câu tuần tự
+        const materialIds = Array.from(new Set(lines.map((l) => l.materialId)));
+        const materials = await tx.material.findMany({
           where: {
-            id: line.materialId,
+            id: { in: materialIds },
             isDeleted: false,
           },
         });
+        const materialMap = new Map(materials.map((m) => [m.id, m]));
 
-        if (!material) {
-          throw new Error(`NOT_FOUND_${line.materialId}`);
+        // Kiểm tra xem có vật tư nào không tồn tại
+        for (const line of lines) {
+          if (!materialMap.has(line.materialId)) {
+            throw new Error(`NOT_FOUND_${line.materialId}`);
+          }
         }
 
-        const qty = Number(line.quantity);
-        const unitPrice = Math.round(Number(line.unitPrice));
-        const convFactor = Number(material.conversionFactor) || 1;
-        const lineTotal = Math.round(qty * unitPrice);
-        const convertedQty = qty * convFactor;
+        // 3. Tính toán các dòng nhập hàng trong bộ nhớ
+        const preparedLines = [];
+        let linesTotalSum = 0;
 
-        linesTotalSum += lineTotal;
+        for (const line of lines) {
+          const material = materialMap.get(line.materialId)!;
+          const qty = Number(line.quantity);
+          const unitPrice = Math.round(Number(line.unitPrice));
+          const convFactor = Number(material.conversionFactor) || 1;
+          const lineTotal = Math.round(qty * unitPrice);
+          const convertedQty = qty * convFactor;
 
-        preparedLines.push({
-          materialId: line.materialId,
-          quantity: qty,
-          unitPrice,
-          lineTotal,
-          convertedQty,
-          material,
-        });
-      }
+          linesTotalSum += lineTotal;
 
-      // 3. Tính tổng tiền đơn nhập hàng = tổng tiền hàng + phí vận chuyển
-      const totalAmount = linesTotalSum + Math.round(Number(shippingCost) || 0);
+          preparedLines.push({
+            materialId: line.materialId,
+            quantity: qty,
+            unitPrice,
+            lineTotal,
+            convertedQty,
+            material,
+          });
+        }
 
-      // 4. Tạo Purchase cùng các dòng PurchaseLine
-      const purchase = await tx.purchase.create({
-        data: {
-          date: parsedDate,
-          supplierId: supplier.id,
-          supplierName: supplier.name,
-          shippingCost: Math.round(Number(shippingCost) || 0),
-          totalAmount,
-          note: note || null,
-          invoiceImageUrl: invoiceImageUrl || null,
-          lines: {
-            create: preparedLines.map((l) => ({
-              materialId: l.materialId,
-              quantity: l.quantity,
-              unitPrice: l.unitPrice,
-              lineTotal: l.lineTotal,
-              convertedQty: l.convertedQty,
-            })),
-          },
-        },
-        include: {
-          lines: {
-            include: {
-              material: true,
+        const totalAmount = linesTotalSum + Math.round(Number(shippingCost) || 0);
+
+        // 4. Tạo Purchase cùng các dòng PurchaseLine trong 1 câu lệnh
+        const purchase = await tx.purchase.create({
+          data: {
+            date: parsedDate,
+            supplierId: supplier.id,
+            supplierName: supplier.name,
+            shippingCost: Math.round(Number(shippingCost) || 0),
+            totalAmount,
+            note: note || null,
+            invoiceImageUrl: invoiceImageUrl || null,
+            lines: {
+              create: preparedLines.map((l) => ({
+                materialId: l.materialId,
+                quantity: l.quantity,
+                unitPrice: l.unitPrice,
+                lineTotal: l.lineTotal,
+                convertedQty: l.convertedQty,
+              })),
             },
           },
-          supplier: true,
-        },
-      });
+          include: {
+            lines: {
+              include: {
+                material: true,
+              },
+            },
+            supplier: true,
+          },
+        });
 
-      // 5 & 6. Tạo StockMovement và cập nhật tồn kho + giá vốn bình quân gia quyền cho từng vật tư
-      const materialState = new Map<
-        string,
-        { currentStock: number; avgCost: number }
-      >();
+        // 5. Chuẩn bị dữ liệu StockMovement và tính toán tồn kho + giá vốn mới
+        const stockMovementsToCreate = [];
+        const materialState = new Map<
+          string,
+          { currentStock: number; avgCost: number }
+        >();
 
-      for (const pl of preparedLines) {
-        const unitCostPerBaseUnit =
-          pl.convertedQty > 0 ? pl.lineTotal / pl.convertedQty : 0;
+        for (const pl of preparedLines) {
+          const unitCostPerBaseUnit =
+            pl.convertedQty > 0 ? pl.lineTotal / pl.convertedQty : 0;
 
-        // Tạo StockMovement cho line
-        await tx.stockMovement.create({
-          data: {
+          stockMovementsToCreate.push({
             materialId: pl.materialId,
             type: 'purchase_in',
             quantity: pl.convertedQty,
@@ -236,48 +243,61 @@ export async function POST(request: NextRequest) {
             refType: 'purchase',
             refId: purchase.id,
             note: `Nhập hàng từ ${supplier.name}`,
-          },
-        });
+          });
 
-        const oldStock = materialState.has(pl.materialId)
-          ? materialState.get(pl.materialId)!.currentStock
-          : Number(pl.material.currentStock);
+          const oldStock = materialState.has(pl.materialId)
+            ? materialState.get(pl.materialId)!.currentStock
+            : Number(pl.material.currentStock);
 
-        const oldAvgCost = materialState.has(pl.materialId)
-          ? materialState.get(pl.materialId)!.avgCost
-          : Number(pl.material.avgCost);
+          const oldAvgCost = materialState.has(pl.materialId)
+            ? materialState.get(pl.materialId)!.avgCost
+            : Number(pl.material.avgCost);
 
-        // Công thức bình quân gia quyền:
-        let newAvgCost: number;
-        if (oldStock <= 0 || oldStock + pl.convertedQty <= 0) {
-          newAvgCost = unitCostPerBaseUnit;
-        } else {
-          newAvgCost =
-            (oldStock * oldAvgCost + pl.convertedQty * unitCostPerBaseUnit) /
-            (oldStock + pl.convertedQty);
+          // Công thức bình quân gia quyền:
+          let newAvgCost: number;
+          if (oldStock <= 0 || oldStock + pl.convertedQty <= 0) {
+            newAvgCost = unitCostPerBaseUnit;
+          } else {
+            newAvgCost =
+              (oldStock * oldAvgCost + pl.convertedQty * unitCostPerBaseUnit) /
+              (oldStock + pl.convertedQty);
+          }
+
+          const newStock = oldStock + pl.convertedQty;
+
+          materialState.set(pl.materialId, {
+            currentStock: newStock,
+            avgCost: Math.round(newAvgCost * 100) / 100,
+          });
         }
 
-        const newStock = oldStock + pl.convertedQty;
+        // Batch insert toàn bộ StockMovement trong 1 lần gọi
+        if (stockMovementsToCreate.length > 0) {
+          await tx.stockMovement.createMany({
+            data: stockMovementsToCreate,
+          });
+        }
 
-        materialState.set(pl.materialId, {
-          currentStock: newStock,
-          avgCost: Math.round(newAvgCost * 100) / 100,
-        });
+        // Cập nhật tồn kho và avgCost của các vật tư song song
+        await Promise.all(
+          Array.from(materialState.entries()).map(([materialId, state]) =>
+            tx.material.update({
+              where: { id: materialId },
+              data: {
+                currentStock: state.currentStock,
+                avgCost: state.avgCost,
+              },
+            })
+          )
+        );
+
+        return purchase;
+      },
+      {
+        maxWait: 15000, // Chờ connection pool tối đa 15s
+        timeout: 60000, // Timeout giao dịch 60s (cho phép nhập đơn hàng lớn thoải mái)
       }
-
-      // Cập nhật các Material với giá trị tồn kho và avgCost cuối cùng
-      for (const [materialId, state] of Array.from(materialState.entries())) {
-        await tx.material.update({
-          where: { id: materialId },
-          data: {
-            currentStock: state.currentStock,
-            avgCost: state.avgCost,
-          },
-        });
-      }
-
-      return purchase;
-    });
+    );
 
     return NextResponse.json(formatPurchase(createdPurchase), { status: 201 });
   } catch (error: any) {
