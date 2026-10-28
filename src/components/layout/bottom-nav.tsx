@@ -39,7 +39,7 @@ export function BottomNav() {
               className={cn(
                 'flex-1 flex flex-col items-center py-2 pt-2.5 transition-colors min-h-[56px]',
                 isActive
-                  ? 'text-rose-500'
+                  ? 'text-purple-600'
                   : 'text-gray-400 active:text-gray-600'
               )}
             >

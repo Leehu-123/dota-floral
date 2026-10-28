@@ -46,10 +46,10 @@ export function Header({ title = 'Dota Floral' }: HeaderProps) {
           <Link href="/" className="flex items-center gap-2.5 group">
             <span className="text-2xl transition-transform group-hover:scale-110">🌸</span>
             <div>
-              <h1 className="text-lg md:text-xl font-black text-rose-900 tracking-tight leading-none">
+              <h1 className="text-lg md:text-xl font-black text-purple-900 tracking-tight leading-none">
                 {title}
               </h1>
-              <p className="text-[10px] text-rose-500 font-medium hidden sm:block mt-0.5">
+              <p className="text-[10px] text-purple-500 font-medium hidden sm:block mt-0.5">
                 Tiệm hoa handmade • Bắc Hà
               </p>
             </div>
@@ -70,7 +70,7 @@ export function Header({ title = 'Dota Floral' }: HeaderProps) {
                   className={cn(
                     'flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all',
                     isActive
-                      ? 'bg-rose-50 text-rose-700 shadow-xs font-bold'
+                      ? 'bg-purple-50 text-purple-700 shadow-xs font-bold'
                       : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
                   )}
                 >
@@ -89,17 +89,17 @@ export function Header({ title = 'Dota Floral' }: HeaderProps) {
             size="sm"
             variant="outline"
             onClick={() => setMobileDialogOpen(true)}
-            className="hidden sm:inline-flex rounded-xl border-gray-200 text-gray-700 hover:text-rose-600 hover:border-rose-200 font-semibold text-xs gap-1.5 h-9 px-3"
+            className="hidden sm:inline-flex rounded-xl border-gray-200 text-gray-700 hover:text-purple-600 hover:border-purple-200 font-semibold text-xs gap-1.5 h-9 px-3"
             title="Mở ứng dụng trên điện thoại"
           >
-            <Smartphone className="w-3.5 h-3.5 text-rose-500" />
+            <Smartphone className="w-3.5 h-3.5 text-purple-500" />
             <span>Mở trên điện thoại</span>
           </Button>
 
           {/* Quick POS Button for Desktop */}
           <Button
             size="sm"
-            className="hidden sm:inline-flex rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs gap-1.5 h-9 px-3.5 shadow-sm active:scale-95"
+            className="hidden sm:inline-flex rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs gap-1.5 h-9 px-3.5 shadow-sm active:scale-95"
             asChild
           >
             <Link href="/orders/new?channel=tai_tiem">

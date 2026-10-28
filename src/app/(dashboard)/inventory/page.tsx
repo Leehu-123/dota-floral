@@ -449,7 +449,7 @@ export default function InventoryPage() {
         <div className="space-y-4">
           {/* Quick Metrics Header Card */}
           <div className="grid grid-cols-3 gap-2">
-            <Card className="rounded-2xl border-rose-100 bg-gradient-to-br from-rose-50/70 to-pink-50/50 p-3 text-center">
+            <Card className="rounded-2xl border-purple-100 bg-gradient-to-br from-purple-50/80 to-indigo-50/50 p-3 text-center">
               <span className="text-[10px] font-medium text-rose-600 uppercase block">
                 Tổng có sẵn
               </span>

@@ -32,17 +32,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-rose-50 via-pink-50 to-orange-50 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-100/70 via-purple-50 to-indigo-50/60 p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="text-5xl mb-3">🌸</div>
-          <h1 className="text-2xl font-bold text-rose-900">Dota Floral</h1>
-          <p className="text-sm text-rose-600 mt-1">Quản lý tiệm hoa</p>
+          <h1 className="text-2xl font-bold text-purple-900">Dota Floral</h1>
+          <p className="text-sm text-purple-600 mt-1">Quản lý tiệm hoa</p>
         </div>
 
         <form
           onSubmit={handleSubmit}
-          className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg p-6 space-y-4"
+          className="bg-white/85 backdrop-blur-sm rounded-2xl shadow-lg border border-purple-100/50 p-6 space-y-4"
         >
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -52,7 +52,7 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-rose-300 transition-shadow"
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition-shadow"
               placeholder="email@dotafloral.com"
               required
               autoComplete="email"
@@ -67,7 +67,7 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-rose-300 focus:border-rose-300 transition-shadow"
+              className="w-full rounded-xl border border-gray-200 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-purple-300 focus:border-purple-300 transition-shadow"
               placeholder="••••••••"
               required
               autoComplete="current-password"
@@ -83,7 +83,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-rose-500 text-white rounded-xl py-3.5 font-semibold text-base hover:bg-rose-600 active:bg-rose-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+            className="w-full bg-purple-600 text-white rounded-xl py-3.5 font-semibold text-base hover:bg-purple-700 active:bg-purple-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
           >
             {loading ? (
               <span className="flex items-center justify-center gap-2">
@@ -99,7 +99,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <p className="text-center text-xs text-rose-400 mt-6">
+        <p className="text-center text-xs text-purple-400 mt-6">
           Dota Floral • TT. Bắc Hà, Lào Cai
         </p>
       </div>

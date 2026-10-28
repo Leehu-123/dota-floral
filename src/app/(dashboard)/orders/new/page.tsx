@@ -1225,7 +1225,7 @@ function NewOrderForm() {
               </div>
 
               {/* Total Calculation Display */}
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-rose-50/70 to-pink-50/40 border border-rose-100 space-y-1.5">
+              <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-50/70 to-indigo-50/40 border border-purple-100 space-y-1.5">
                 <div className="flex justify-between text-xs text-gray-600">
                   <span>Tạm tính:</span>
                   <span className="font-semibold">{formatVND(subtotal)}</span>

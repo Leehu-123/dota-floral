@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import colors from "tailwindcss/colors";
 
 const config: Config = {
   darkMode: ["class"],
@@ -10,6 +11,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
+        rose: colors.purple,
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",

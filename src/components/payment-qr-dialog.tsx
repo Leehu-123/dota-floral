@@ -133,14 +133,14 @@ export function PaymentQrDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm rounded-2xl p-5 mx-4">
         <DialogHeader className="text-center pb-2 border-b border-gray-100">
-          <div className="mx-auto w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center text-rose-500 mb-2">
+          <div className="mx-auto w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center text-purple-600 mb-2">
             <QrCode className="w-5 h-5" />
           </div>
           <DialogTitle className="text-lg font-bold text-gray-900">
             Quét Mã VietQR Chuyển Khoản
           </DialogTitle>
           <DialogDescription className="text-xs text-gray-500">
-            Đơn hàng: <span className="font-semibold text-rose-600">{orderCode}</span>
+            Đơn hàng: <span className="font-semibold text-purple-600">{orderCode}</span>
             {customerName && ` • Khách: ${customerName}`}
           </DialogDescription>
         </DialogHeader>
@@ -152,7 +152,7 @@ export function PaymentQrDialog({
         ) : bankSettings ? (
           <div className="space-y-4 pt-2">
             {/* VietQR Image Container */}
-            <div className="bg-gradient-to-b from-rose-50/50 to-pink-50/30 rounded-2xl p-3 border border-rose-100/80 flex flex-col items-center justify-center">
+            <div className="bg-gradient-to-b from-purple-50/70 to-indigo-50/40 rounded-2xl p-3 border border-purple-100/80 flex flex-col items-center justify-center">
               {qrUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -181,7 +181,7 @@ export function PaymentQrDialog({
                 <button
                   type="button"
                   onClick={() => copyToClipboard(bankSettings.accountNo, 'số tài khoản')}
-                  className="font-mono font-semibold text-rose-600 flex items-center gap-1 active:opacity-70"
+                  className="font-mono font-semibold text-purple-600 flex items-center gap-1 active:opacity-70"
                 >
                   {bankSettings.accountNo}
                   <Copy className="w-3.5 h-3.5 text-gray-400" />
@@ -195,7 +195,7 @@ export function PaymentQrDialog({
               </div>
               <div className="flex justify-between items-center pt-1 border-t border-gray-200">
                 <span className="text-gray-500">Số tiền:</span>
-                <span className="text-sm font-bold text-rose-600">
+                <span className="text-sm font-bold text-purple-600">
                   {formatVND(amount)}
                 </span>
               </div>

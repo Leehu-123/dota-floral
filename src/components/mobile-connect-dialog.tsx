@@ -66,7 +66,7 @@ export function MobileConnectDialog({ open, onOpenChange }: MobileConnectDialogP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="rounded-2xl max-w-sm p-6 text-center">
         <DialogHeader className="items-center text-center">
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-1">
+          <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-1">
             <Smartphone className="w-6 h-6" />
           </div>
           <DialogTitle className="text-lg font-bold text-gray-900">
@@ -79,7 +79,7 @@ export function MobileConnectDialog({ open, onOpenChange }: MobileConnectDialogP
 
         <div className="space-y-4 my-2">
           {/* QR Code Container */}
-          <div className="p-3 bg-white border border-rose-100 rounded-2xl shadow-xs inline-block mx-auto">
+          <div className="p-3 bg-white border border-purple-100 rounded-2xl shadow-xs inline-block mx-auto">
             <img
               src={qrImageUrl}
               alt="Mã QR mở trên điện thoại"
@@ -96,7 +96,7 @@ export function MobileConnectDialog({ open, onOpenChange }: MobileConnectDialogP
               <input
                 readOnly
                 value={effectiveUrl}
-                className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-rose-600 font-mono flex-1 select-all outline-none"
+                className="bg-white border border-gray-200 rounded-lg px-2.5 py-1.5 text-xs text-purple-600 font-mono flex-1 select-all outline-none"
               />
               <Button
                 size="sm"
@@ -120,12 +120,12 @@ export function MobileConnectDialog({ open, onOpenChange }: MobileConnectDialogP
           </div>
 
           {/* Login credential reminder */}
-          <div className="text-left text-xs bg-rose-50/60 border border-rose-100 p-2.5 rounded-xl space-y-1">
-            <p className="font-bold text-rose-900">🌸 Tài khoản đăng nhập:</p>
-            <p className="text-rose-800 text-[11px]">
+          <div className="text-left text-xs bg-purple-50/60 border border-purple-100 p-2.5 rounded-xl space-y-1">
+            <p className="font-bold text-purple-900">🌸 Tài khoản đăng nhập:</p>
+            <p className="text-purple-800 text-[11px]">
               Email: <code className="bg-white px-1 py-0.5 rounded font-bold">anh@dotafloral.com</code>
             </p>
-            <p className="text-rose-800 text-[11px]">
+            <p className="text-purple-800 text-[11px]">
               Mật khẩu: <code className="bg-white px-1 py-0.5 rounded font-bold">dotafloral2024</code>
             </p>
           </div>

@@ -829,7 +829,7 @@ ${
             <Button
               type="button"
               onClick={() => setQrDialogOpen(true)}
-              className="w-full rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white h-10 font-semibold text-xs gap-1.5 shadow-xs"
+              className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white h-10 font-semibold text-xs gap-1.5 shadow-xs"
             >
               <QrCode className="w-3.5 h-3.5" />
               <span>Quét mã QR</span>
