@@ -16,6 +16,7 @@ import {
   Store,
   ChevronRight,
   TrendingUp,
+  FileText,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -195,37 +196,51 @@ export default function InventoryPage() {
 
   return (
     <div className="space-y-4 pb-6">
-      {/* Page Title & Add Button */}
-      <div className="flex items-center justify-between">
+      {/* Page Title & Quick Actions */}
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">Quản lý kho</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">
+          <h2 className="text-xl md:text-2xl font-black text-purple-950">Quản lý kho</h2>
+          <p className="text-xs text-purple-700 font-semibold mt-0.5">
             Nguyên vật liệu & Hoa bó sẵn tại tiệm
           </p>
         </div>
-        {activeTab === 'materials' ? (
+        <div className="flex items-center gap-2">
           <Button
             size="sm"
-            className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm gap-1.5 h-9"
+            variant="outline"
+            className="rounded-xl border-purple-200 text-purple-900 hover:bg-purple-100 font-bold text-xs gap-1.5 h-9"
             asChild
           >
-            <Link href="/inventory/materials/new">
-              <Plus className="w-4 h-4" />
-              <span>Thêm vật tư</span>
+            <Link href="/purchases">
+              <FileText className="w-4 h-4 text-purple-700" />
+              <span>Phiếu nhập hàng</span>
             </Link>
           </Button>
-        ) : (
-          <Button
-            size="sm"
-            className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm gap-1.5 h-9"
-            asChild
-          >
-            <Link href="/products/new">
-              <Plus className="w-4 h-4" />
-              <span>Thêm mẫu</span>
-            </Link>
-          </Button>
-        )}
+
+          {activeTab === 'materials' ? (
+            <Button
+              size="sm"
+              className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-sm gap-1.5 h-9 font-bold text-xs"
+              asChild
+            >
+              <Link href="/purchases/new">
+                <Plus className="w-4 h-4" />
+                <span>Nhập hàng</span>
+              </Link>
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-sm gap-1.5 h-9 font-bold text-xs"
+              asChild
+            >
+              <Link href="/products/new">
+                <Plus className="w-4 h-4" />
+                <span>Thêm mẫu</span>
+              </Link>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Main Mode Switcher: Nguyên vật liệu vs Hoa thành phẩm */}
@@ -417,27 +432,38 @@ export default function InventoryPage() {
           </div>
 
           {/* Bottom Action Buttons for Raw Materials */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
             <Button
               variant="outline"
               size="lg"
-              className="w-full rounded-xl h-12 border-purple-200/80 bg-white hover:bg-[#d4c8ee]/30 hover:text-purple-950 hover:border-purple-300 text-purple-950 font-bold shadow-xs active:scale-[0.98]"
+              className="w-full rounded-xl h-12 border-purple-200/80 bg-white hover:bg-purple-50 text-purple-950 font-bold shadow-xs active:scale-[0.98]"
               asChild
             >
-              <Link href="/inventory/stock-check">
-                <ClipboardList className="w-5 h-5 mr-2 text-purple-700" />
-                Kiểm kho NVL
+              <Link href="/purchases">
+                <FileText className="w-5 h-5 mr-2 text-purple-700" />
+                Lịch sử phiếu nhập
               </Link>
             </Button>
             <Button
               variant="outline"
               size="lg"
-              className="w-full rounded-xl h-12 border-purple-200/80 bg-white hover:bg-[#d4c8ee]/30 hover:text-purple-950 hover:border-purple-300 text-purple-950 font-bold shadow-xs active:scale-[0.98]"
+              className="w-full rounded-xl h-12 border-purple-200/80 bg-white hover:bg-purple-50 text-purple-950 font-bold shadow-xs active:scale-[0.98]"
               asChild
             >
               <Link href="/purchases/new">
                 <Download className="w-5 h-5 mr-2 text-purple-700" />
-                Nhập hàng NVL
+                Tạo phiếu nhập mới
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-full rounded-xl h-12 border-purple-200/80 bg-white hover:bg-purple-50 text-purple-950 font-bold shadow-xs active:scale-[0.98]"
+              asChild
+            >
+              <Link href="/inventory/stock-check">
+                <ClipboardList className="w-5 h-5 mr-2 text-purple-700" />
+                Kiểm kho NVL
               </Link>
             </Button>
           </div>
