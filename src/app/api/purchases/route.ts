@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 
+export const dynamic = 'force-dynamic';
+
 const createPurchaseSchema = z.object({
   date: z.string().or(z.date()),
   supplierName: z.string().trim().min(1, 'Tên nhà cung cấp là bắt buộc'),
@@ -116,9 +118,11 @@ export async function POST(request: NextRequest) {
     const validated = createPurchaseSchema.safeParse(body);
 
     if (!validated.success) {
+      const firstError = validated.error.errors[0]?.message || 'Dữ liệu không hợp lệ';
+      console.error('Validation purchase error:', validated.error.flatten());
       return NextResponse.json(
         {
-          error: validated.error.errors[0]?.message || 'Dữ liệu không hợp lệ',
+          error: firstError,
           details: validated.error.flatten().fieldErrors,
         },
         { status: 400 }
@@ -126,6 +130,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { date, supplierName, shippingCost, note, invoiceImageUrl, lines } = validated.data;
+
+    // Parse date safely
+    const parsedDate = new Date(date);
+    if (isNaN(parsedDate.getTime())) {
+      return NextResponse.json(
+        { error: 'Ngày nhập hàng không hợp lệ' },
+        { status: 400 }
+      );
+    }
 
     const createdPurchase = await prisma.$transaction(async (tx) => {
       // 1. Tìm hoặc tạo Nhà cung cấp theo tên (upsert)
@@ -153,8 +166,8 @@ export async function POST(request: NextRequest) {
         }
 
         const qty = Number(line.quantity);
-        const unitPrice = Number(line.unitPrice);
-        const convFactor = Number(material.conversionFactor);
+        const unitPrice = Math.round(Number(line.unitPrice));
+        const convFactor = Number(material.conversionFactor) || 1;
         const lineTotal = Math.round(qty * unitPrice);
         const convertedQty = qty * convFactor;
 
@@ -171,15 +184,15 @@ export async function POST(request: NextRequest) {
       }
 
       // 3. Tính tổng tiền đơn nhập hàng = tổng tiền hàng + phí vận chuyển
-      const totalAmount = linesTotalSum + shippingCost;
+      const totalAmount = linesTotalSum + Math.round(Number(shippingCost) || 0);
 
       // 4. Tạo Purchase cùng các dòng PurchaseLine
       const purchase = await tx.purchase.create({
         data: {
-          date: new Date(date),
+          date: parsedDate,
           supplierId: supplier.id,
           supplierName: supplier.name,
-          shippingCost,
+          shippingCost: Math.round(Number(shippingCost) || 0),
           totalAmount,
           note: note || null,
           invoiceImageUrl: invoiceImageUrl || null,
@@ -204,7 +217,6 @@ export async function POST(request: NextRequest) {
       });
 
       // 5 & 6. Tạo StockMovement và cập nhật tồn kho + giá vốn bình quân gia quyền cho từng vật tư
-      // Theo dõi trạng thái tồn kho và giá vốn per material để xử lý đúng nếu một vật tư xuất hiện ở nhiều line
       const materialState = new Map<
         string,
         { currentStock: number; avgCost: number }
@@ -236,8 +248,6 @@ export async function POST(request: NextRequest) {
           : Number(pl.material.avgCost);
 
         // Công thức bình quân gia quyền:
-        // newAvgCost = (oldStock * oldAvgCost + convertedQty * unitCostPerBaseUnit) / (oldStock + convertedQty)
-        // Nếu oldStock + convertedQty = 0 (hoặc oldStock <= 0), avgCost = unitCostPerBaseUnit
         let newAvgCost: number;
         if (oldStock <= 0 || oldStock + pl.convertedQty <= 0) {
           newAvgCost = unitCostPerBaseUnit;
@@ -282,7 +292,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Không thể tạo đơn nhập hàng' },
+      { error: error?.message || 'Không thể tạo đơn nhập hàng' },
       { status: 500 }
     );
   }
