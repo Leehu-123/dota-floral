@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { MATERIAL_GROUPS } from '@/lib/constants';
 
+export const dynamic = 'force-dynamic';
+
 const updateMaterialSchema = z.object({
   name: z.string().trim().min(1, 'Tên vật tư không được để trống').optional(),
   group: z.string().trim().min(1, 'Nhóm vật tư không được để trống').refine(
