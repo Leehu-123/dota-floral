@@ -46,6 +46,7 @@ interface ProductItem {
   id: string;
   name: string;
   description?: string | null;
+  imageUrl?: string | null;
   suggestedPrice: number;
   totalCost: number;
   stock: number;
@@ -599,66 +600,83 @@ export default function InventoryPage() {
                 return (
                   <Card
                     key={prod.id}
-                    className="rounded-2xl border border-gray-100 shadow-xs hover:shadow-md transition-all bg-white overflow-hidden"
+                    className="rounded-2xl border border-gray-100 shadow-xs hover:shadow-md transition-all bg-white overflow-hidden flex flex-col group"
                   >
-                    <CardContent className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0 flex-1">
-                          <h3 className="font-bold text-gray-900 text-sm truncate">
-                            {prod.name}
-                          </h3>
-                          {prod.description && (
-                            <p className="text-xs text-muted-foreground truncate mt-0.5">
-                              {prod.description}
-                            </p>
-                          )}
+                    {/* Product Image Thumbnail */}
+                    <div className="relative w-full h-40 bg-purple-50/50 overflow-hidden border-b border-gray-100 flex items-center justify-center">
+                      {prod.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={prod.imageUrl}
+                          alt={prod.name}
+                          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                        />
+                      ) : (
+                        <div className="flex flex-col items-center justify-center text-purple-300 gap-1 select-none py-4">
+                          <span className="text-3xl">🌸</span>
+                          <span className="text-[10px] font-medium text-purple-400/80">Chưa có ảnh</span>
                         </div>
+                      )}
 
-                        {/* Stock badge */}
+                      {/* Stock badge overlaid */}
+                      <div className="absolute top-2.5 right-2.5">
                         {stock > 0 ? (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200 backdrop-blur-md shadow-xs">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                             Có sẵn {stock} bó
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100/90 text-gray-500 backdrop-blur-md">
                             Hết bó sẵn
                           </span>
                         )}
                       </div>
+                    </div>
+
+                    <CardContent className="p-3.5 space-y-3 flex-1 flex flex-col justify-between">
+                      <div className="min-w-0 flex-1">
+                        <h3 className="font-bold text-gray-900 text-sm truncate group-hover:text-purple-900 transition-colors">
+                          {prod.name}
+                        </h3>
+                        {prod.description && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5">
+                            {prod.description}
+                          </p>
+                        )}
+                      </div>
 
                       {/* Pricing and Costs */}
-                      <div className="grid grid-cols-2 gap-2 p-2.5 bg-gray-50/70 rounded-xl text-xs">
+                      <div className="grid grid-cols-2 gap-2 p-2 bg-gray-50/70 rounded-xl text-xs">
                         <div>
-                          <span className="text-muted-foreground block text-[11px]">Giá bán tiệm:</span>
-                          <span className="font-bold text-rose-600 text-sm">
+                          <span className="text-muted-foreground block text-[10px]">Giá bán tiệm:</span>
+                          <span className="font-bold text-purple-800 text-sm">
                             {formatVND(prod.suggestedPrice)}
                           </span>
                         </div>
                         <div>
-                          <span className="text-muted-foreground block text-[11px]">Giá vốn/bó:</span>
-                          <span className="font-semibold text-gray-800">
+                          <span className="text-muted-foreground block text-[10px]">Giá vốn/bó:</span>
+                          <span className="font-semibold text-gray-800 text-xs">
                             {formatVND(prod.totalCost)}
                           </span>
                         </div>
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex items-center justify-between gap-2 pt-1">
+                      <div className="flex items-center justify-between gap-2 pt-1 border-t border-gray-100">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => router.push(`/products/${prod.id}`)}
-                          className="text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 h-9 rounded-xl"
+                          className="text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 h-9 rounded-xl px-2"
                         >
-                          <span>Xem công thức & lịch sử</span>
-                          <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                          <span>Công thức</span>
+                          <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
                         </Button>
 
                         <Button
                           size="sm"
                           onClick={() => router.push(`/products/${prod.id}`)}
-                          className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-semibold text-xs h-9 px-3 gap-1 shadow-xs active:scale-95"
+                          className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold text-xs h-9 px-3 gap-1 shadow-xs active:scale-95"
                         >
                           <Plus className="w-3.5 h-3.5" />
                           <span>Bó sẵn vào kho</span>

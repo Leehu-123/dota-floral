@@ -409,7 +409,22 @@ export default function ProductDetailPage() {
       </div>
 
       {/* 1. Product Info Card */}
-      <Card className="rounded-xl border border-gray-100 shadow-xs bg-white overflow-hidden">
+      <Card className="rounded-2xl border border-gray-100 shadow-xs bg-white overflow-hidden">
+        {product.imageUrl && (
+          <div className="relative w-full aspect-[16/9] sm:aspect-[21/9] max-h-72 bg-gray-100 overflow-hidden">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-cover object-center"
+            />
+            <div className="absolute top-3 left-3">
+              <Badge className="bg-black/60 text-white backdrop-blur-md border-0 text-[11px] font-medium">
+                🌸 Ảnh thành phẩm thực tế
+              </Badge>
+            </div>
+          </div>
+        )}
         <CardContent className="p-4 space-y-2.5">
           <div className="flex items-start justify-between gap-3">
             <div>

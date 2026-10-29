@@ -28,6 +28,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ImageUpload } from '@/components/ui/image-upload';
 import {
   Dialog,
   DialogContent,
@@ -69,6 +70,7 @@ export default function NewProductPage() {
   // Form inputs
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [laborCost, setLaborCost] = useState<number | string>(30000);
   const [overheadPercent, setOverheadPercent] = useState<number | string>(10);
   const [targetMargin, setTargetMargin] = useState<number | string>(40);
@@ -311,6 +313,7 @@ export default function NewProductPage() {
       const payload = {
         name: name.trim(),
         description: description.trim() || null,
+        imageUrl: imageUrl || null,
         type: 'template',
         laborCost: Number(laborCost) || 0,
         overheadPercent: Number(overheadPercent) || 0,
@@ -420,6 +423,15 @@ export default function NewProductPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
                 className="rounded-xl text-sm min-h-[70px]"
+              />
+            </div>
+
+            <div className="pt-2 border-t border-gray-100">
+              <ImageUpload
+                value={imageUrl}
+                onChange={setImageUrl}
+                label="Ảnh chụp sản phẩm thành phẩm"
+                description="Chụp ảnh thực tế bó hoa hoặc tải ảnh mẫu từ máy để khách và thợ dễ xem"
               />
             </div>
           </CardContent>

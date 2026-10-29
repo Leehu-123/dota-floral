@@ -206,12 +206,12 @@ export default function ProductsPage() {
         </div>
         <Button
           size="sm"
-          className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm gap-1.5 h-10 px-3.5"
+          className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-sm gap-1.5 h-10 px-3.5 font-semibold"
           asChild
         >
           <Link href="/products/new">
             <Plus className="w-4 h-4" />
-            <span className="font-medium text-xs">Thêm mẫu</span>
+            <span className="text-xs">Thêm mẫu</span>
           </Link>
         </Button>
       </div>
@@ -232,9 +232,9 @@ export default function ProductsPage() {
       <div className="flex gap-2">
         <button
           onClick={() => setFilterType('all')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
+          className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors border ${
             filterType === 'all'
-              ? 'bg-rose-50 border-rose-200 text-rose-700 font-semibold'
+              ? 'bg-purple-100 border-purple-300 text-purple-900 shadow-xs'
               : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
           }`}
         >
@@ -242,16 +242,16 @@ export default function ProductsPage() {
         </button>
         <button
           onClick={() => setFilterType('low_margin')}
-          className={`px-3.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border flex items-center gap-1.5 ${
+          className={`px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors border flex items-center gap-1.5 ${
             filterType === 'low_margin'
-              ? 'bg-rose-50 border-rose-200 text-rose-700 font-semibold'
+              ? 'bg-purple-100 border-purple-300 text-purple-900 shadow-xs'
               : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
           }`}
         >
-          <AlertTriangle className="w-3 h-3 text-rose-500" />
+          <AlertTriangle className="w-3 h-3 text-amber-500" />
           <span>Biên LN thấp (&lt;20%)</span>
           {lowMarginCount > 0 && (
-            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-rose-100 text-rose-700">
+            <span className="px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
               {lowMarginCount}
             </span>
           )}
@@ -341,76 +341,93 @@ export default function ProductsPage() {
               <Card
                 key={product.id}
                 onClick={() => router.push(`/products/${product.id}`)}
-                className="rounded-xl border border-gray-100 shadow-xs hover:shadow-md hover:border-rose-200 transition-all cursor-pointer active:scale-[0.99] bg-white overflow-hidden"
+                className="rounded-2xl border border-gray-100 shadow-xs hover:shadow-md hover:border-purple-300 transition-all cursor-pointer active:scale-[0.99] bg-white overflow-hidden flex flex-col group"
               >
-                <CardContent className="p-4 space-y-3">
-                  {/* Title & Margin Badge */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <h3 className="font-semibold text-gray-900 text-base leading-tight truncate">
-                          {product.name}
-                        </h3>
-                        {marginStyle.isLow && (
-                          <Badge
-                            variant="danger"
-                            className="text-[10px] px-1.5 py-0 shrink-0 font-medium bg-rose-100 text-rose-700 border-rose-200"
-                          >
-                            <AlertTriangle className="w-2.5 h-2.5 mr-0.5 inline" />
-                            Biên LN thấp
-                          </Badge>
-                        )}
-                      </div>
-                      {product.description && (
-                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
-                          {product.description}
-                        </p>
+                {/* Product Image Thumbnail / Banner */}
+                <div className="relative w-full h-44 sm:h-48 bg-purple-50/50 overflow-hidden border-b border-gray-100 flex items-center justify-center">
+                  {product.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={product.imageUrl}
+                      alt={product.name}
+                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-purple-300 gap-1 select-none py-6">
+                      <span className="text-3xl">🌸</span>
+                      <span className="text-[11px] font-medium text-purple-400/80">Chưa có ảnh</span>
+                    </div>
+                  )}
+
+                  {/* Margin Pill overlaid on top right of image */}
+                  <div
+                    className={`absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full text-xs font-bold border backdrop-blur-md shadow-xs ${marginStyle.badgeClass}`}
+                  >
+                    <span className={`w-1.5 h-1.5 rounded-full inline-block mr-1.5 ${marginStyle.dotClass}`} />
+                    <span>{product.computedMargin.toFixed(0)}% LN</span>
+                  </div>
+
+                  {product.type === 'template' && (
+                    <div className="absolute bottom-2 left-2.5">
+                      <span className="text-[10px] bg-black/60 text-white backdrop-blur-md px-2 py-0.5 rounded-md font-semibold">
+                        Mẫu chuẩn
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <CardContent className="p-3.5 space-y-2.5 flex-1 flex flex-col justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-1.5">
+                      <h3 className="font-bold text-gray-900 text-sm leading-snug line-clamp-1 group-hover:text-purple-900 transition-colors">
+                        {product.name}
+                      </h3>
+                      {marginStyle.isLow && (
+                        <Badge
+                          variant="danger"
+                          className="text-[10px] px-1.5 py-0 shrink-0 font-medium bg-red-100 text-red-700 border-red-200"
+                        >
+                          <AlertTriangle className="w-2.5 h-2.5 mr-0.5 inline" />
+                          LN thấp
+                        </Badge>
                       )}
                     </div>
-
-                    {/* Margin Pill */}
-                    <div
-                      className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-semibold border flex items-center gap-1.5 ${marginStyle.badgeClass}`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${marginStyle.dotClass}`} />
-                      <span>{product.computedMargin.toFixed(0)}% LN</span>
-                    </div>
+                    {product.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-1 leading-relaxed">
+                        {product.description}
+                      </p>
+                    )}
                   </div>
 
                   {/* Materials Count Pill & Type */}
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-600 px-2 py-0.5 rounded-md text-[11px]">
+                    <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-600 px-2 py-0.5 rounded-md text-[11px] font-medium">
                       <Layers className="w-3 h-3 text-gray-400" />
                       {product.materialCount} nguyên liệu
                     </span>
-                    {product.type === 'template' && (
-                      <span className="text-[11px] bg-rose-50 text-rose-700 px-2 py-0.5 rounded-md font-medium">
-                        Mẫu chuẩn
-                      </span>
-                    )}
                   </div>
 
                   {/* Cost & Price Row */}
-                  <div className="grid grid-cols-2 gap-2 pt-2.5 border-t border-gray-100">
-                    <div className="bg-gray-50/70 p-2.5 rounded-lg">
-                      <span className="text-[11px] text-muted-foreground block">
-                        Giá vốn (Tất cả)
+                  <div className="grid grid-cols-2 gap-2 pt-2 border-t border-gray-100">
+                    <div className="bg-gray-50/80 p-2 rounded-xl">
+                      <span className="text-[10px] text-muted-foreground block font-medium">
+                        Giá vốn
                       </span>
-                      <span className="text-sm font-semibold text-gray-900 mt-0.5 block">
+                      <span className="text-xs font-bold text-gray-800 mt-0.5 block truncate">
                         {formatVND(product.computedTotalCost)}
                       </span>
                     </div>
 
-                    <div className="bg-rose-50/60 p-2.5 rounded-lg flex items-center justify-between">
-                      <div>
-                        <span className="text-[11px] text-rose-700 font-medium block">
-                          Giá bán gợi ý
+                    <div className="bg-purple-50 p-2 rounded-xl flex items-center justify-between border border-purple-100/60">
+                      <div className="min-w-0">
+                        <span className="text-[10px] text-purple-700 font-semibold block">
+                          Giá bán
                         </span>
-                        <span className="text-sm font-bold text-rose-900 mt-0.5 block">
+                        <span className="text-xs font-extrabold text-purple-950 mt-0.5 block truncate">
                           {formatVND(product.computedPrice)}
                         </span>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-rose-400 shrink-0 ml-1" />
+                      <ChevronRight className="w-3.5 h-3.5 text-purple-400 shrink-0 ml-1" />
                     </div>
                   </div>
                 </CardContent>
