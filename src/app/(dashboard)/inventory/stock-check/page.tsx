@@ -15,6 +15,8 @@ import {
   TrendingUp,
   PackageCheck,
   ChevronRight,
+  Layers,
+  Calculator,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -46,8 +48,17 @@ export default function StockCheckPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  // Map of materialId -> actual count string
+  // Map of materialId -> actual count string (in baseUnit)
   const [actualCounts, setActualCounts] = useState<Record<string, string>>({});
+  // Map of materialId -> whole stem/pack count string (in purchaseUnit)
+  const [packCounts, setPackCounts] = useState<Record<string, string>>({});
+  // Map of materialId -> loose stem/flower count string (in baseUnit)
+  const [looseCounts, setLooseCounts] = useState<Record<string, string>>({});
+  // Map of materialId -> boolean (whether breakdown mode is active or user switched to direct total)
+  const [directModeMap, setDirectModeMap] = useState<Record<string, boolean>>({});
+  // Map of materialId -> custom factor if item doesn't have factor > 1
+  const [customFactors, setCustomFactors] = useState<Record<string, string>>({});
+
   const [note, setNote] = useState('');
   const [search, setSearch] = useState('');
   const [onlyDiffs, setOnlyDiffs] = useState(false);
@@ -64,12 +75,27 @@ export default function StockCheckPage() {
         const data: Material[] = await res.json();
         setMaterials(data);
 
-        // Pre-fill actual counts with current system stock
+        // Pre-fill actual counts, pack counts and loose counts
         const initialCounts: Record<string, string> = {};
+        const initialPacks: Record<string, string> = {};
+        const initialLoose: Record<string, string> = {};
+
         data.forEach((m) => {
-          initialCounts[m.id] = Number(m.currentStock).toString();
+          const stock = Number(m.currentStock);
+          initialCounts[m.id] = stock.toString();
+
+          const factor = Number(m.conversionFactor) > 1 ? Number(m.conversionFactor) : 1;
+          if (factor > 1) {
+            const whole = Math.floor(stock / factor);
+            const remainder = Math.round((stock - whole * factor) * 100) / 100;
+            initialPacks[m.id] = whole > 0 ? whole.toString() : '0';
+            initialLoose[m.id] = remainder > 0 ? remainder.toString() : '0';
+          }
         });
+
         setActualCounts(initialCounts);
+        setPackCounts(initialPacks);
+        setLooseCounts(initialLoose);
       } catch (err: any) {
         console.error(err);
         toast.error(err.message || 'Lỗi khi tải dữ liệu nguyên liệu');
@@ -81,6 +107,39 @@ export default function StockCheckPage() {
     fetchMaterials();
   }, []);
 
+  const getEffectiveFactor = (m: Material) => {
+    const baseFactor = Number(m.conversionFactor) > 0 ? Number(m.conversionFactor) : 1;
+    if (baseFactor > 1) return baseFactor;
+    const custom = parseFloat(customFactors[m.id] || '');
+    return custom > 1 ? custom : 1;
+  };
+
+  const handlePackChange = (m: Material, value: string) => {
+    setPackCounts((prev) => ({ ...prev, [m.id]: value }));
+
+    const factor = getEffectiveFactor(m);
+    const packs = value === '' ? 0 : Math.max(0, parseFloat(value) || 0);
+    const looseStr = looseCounts[m.id] ?? '';
+    const loose = looseStr === '' ? 0 : Math.max(0, parseFloat(looseStr) || 0);
+
+    const total = Math.round((packs * factor + loose) * 100) / 100;
+    const totalStr = value === '' && looseStr === '' ? '' : total.toString();
+    setActualCounts((prev) => ({ ...prev, [m.id]: totalStr }));
+  };
+
+  const handleLooseChange = (m: Material, value: string) => {
+    setLooseCounts((prev) => ({ ...prev, [m.id]: value }));
+
+    const factor = getEffectiveFactor(m);
+    const packStr = packCounts[m.id] ?? '';
+    const packs = packStr === '' ? 0 : Math.max(0, parseFloat(packStr) || 0);
+    const loose = value === '' ? 0 : Math.max(0, parseFloat(value) || 0);
+
+    const total = Math.round((packs * factor + loose) * 100) / 100;
+    const totalStr = packStr === '' && value === '' ? '' : total.toString();
+    setActualCounts((prev) => ({ ...prev, [m.id]: totalStr }));
+  };
+
   const handleActualCountChange = (materialId: string, value: string) => {
     setActualCounts((prev) => ({
       ...prev,
@@ -90,10 +149,19 @@ export default function StockCheckPage() {
 
   // Reset a specific material to current stock
   const handleResetItem = (material: Material) => {
+    const stock = Number(material.currentStock);
     setActualCounts((prev) => ({
       ...prev,
-      [material.id]: Number(material.currentStock).toString(),
+      [material.id]: stock.toString(),
     }));
+
+    const factor = getEffectiveFactor(material);
+    if (factor > 1) {
+      const whole = Math.floor(stock / factor);
+      const remainder = Math.round((stock - whole * factor) * 100) / 100;
+      setPackCounts((prev) => ({ ...prev, [material.id]: whole.toString() }));
+      setLooseCounts((prev) => ({ ...prev, [material.id]: remainder.toString() }));
+    }
   };
 
   // Calculate differences
@@ -236,7 +304,7 @@ export default function StockCheckPage() {
 
       <div>
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-          <PackageCheck className="w-6 h-6 text-rose-600" />
+          <PackageCheck className="w-6 h-6 text-purple-600" />
           Kiểm kho định kỳ
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">
@@ -246,19 +314,19 @@ export default function StockCheckPage() {
 
       {/* Banner cân đối sau đợt bán lớn (nếu có phát sinh) */}
       <Link href="/inventory/reconciliation">
-        <div className="bg-rose-50/70 hover:bg-rose-50 border border-rose-200/70 rounded-xl p-3 flex items-center justify-between text-xs transition-colors">
+        <div className="bg-purple-50/70 hover:bg-purple-50 border border-purple-200/70 rounded-xl p-3 flex items-center justify-between text-xs transition-colors">
           <div className="flex items-center gap-2.5">
             <span className="text-base">💡</span>
             <div>
-              <p className="font-semibold text-rose-800">
+              <p className="font-semibold text-purple-900">
                 Vừa qua đợt lễ bận rộn chưa kịp tạo đơn lẻ?
               </p>
-              <p className="text-[11px] text-rose-600 mt-0.5">
+              <p className="text-[11px] text-purple-700 mt-0.5">
                 Dùng công cụ Cân đối theo hóa đơn & tồn cuối để tự tính giá vốn
               </p>
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-rose-500 shrink-0 ml-2" />
+          <ChevronRight className="w-4 h-4 text-purple-500 shrink-0 ml-2" />
         </div>
       </Link>
 
@@ -326,10 +394,10 @@ export default function StockCheckPage() {
             <button
               type="button"
               onClick={() => setSelectedGroup('all')}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors border ${
                 selectedGroup === 'all'
-                  ? 'bg-rose-50 border-rose-200 text-rose-700'
-                  : 'bg-white border-gray-200 text-gray-600'
+                  ? 'bg-purple-100 border-purple-300 text-purple-900 shadow-xs'
+                  : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
               }`}
             >
               Tất cả
@@ -339,10 +407,10 @@ export default function StockCheckPage() {
                 key={g.value}
                 type="button"
                 onClick={() => setSelectedGroup(g.value)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors border ${
+                className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-colors border ${
                   selectedGroup === g.value
-                    ? 'bg-rose-50 border-rose-200 text-rose-700'
-                    : 'bg-white border-gray-200 text-gray-600'
+                    ? 'bg-purple-100 border-purple-300 text-purple-900 shadow-xs'
+                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
                 }`}
               >
                 {g.label}
@@ -356,7 +424,7 @@ export default function StockCheckPage() {
             onClick={() => setOnlyDiffs(!onlyDiffs)}
             className={`shrink-0 px-3 py-1.5 rounded-xl text-xs font-medium border flex items-center gap-1.5 transition-colors ${
               onlyDiffs
-                ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
                 : 'bg-white text-gray-600 border-gray-200'
             }`}
           >
@@ -396,6 +464,9 @@ export default function StockCheckPage() {
             const hasDiff = !isNaN(actualQty) && Math.abs(actualQty - currentStock) > 0.0001;
             const diff = !isNaN(actualQty) ? actualQty - currentStock : 0;
 
+            const factor = getEffectiveFactor(m);
+            const isBreakdownMode = (factor > 1 || !!customFactors[m.id]) && !directModeMap[m.id];
+
             return (
               <Card
                 key={m.id}
@@ -417,6 +488,11 @@ export default function StockCheckPage() {
                       <h3 className="font-semibold text-gray-900 text-sm truncate">
                         {m.name}
                       </h3>
+                      {factor > 1 && (
+                        <span className="inline-flex items-center text-[10px] text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-md font-semibold mt-0.5">
+                          1 {m.purchaseUnit} = {factor} {m.baseUnit}
+                        </span>
+                      )}
                     </div>
 
                     {/* Diff status badge */}
@@ -444,64 +520,222 @@ export default function StockCheckPage() {
                     )}
                   </div>
 
-                  {/* Stock Input Row */}
-                  <div className="grid grid-cols-2 gap-3 items-center pt-1 border-t border-gray-50">
-                    <div>
-                      <span className="text-[11px] text-muted-foreground block">
-                        Tồn hệ thống
-                      </span>
-                      <span className="text-sm font-semibold text-gray-800">
-                        {formatQty(currentStock)}{' '}
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {m.baseUnit}
-                        </span>
-                      </span>
-                    </div>
+                  {isBreakdownMode ? (
+                    /* ========================================================
+                       CHẾ ĐỘ 2 MỤC: SỐ CÀNH NGUYÊN & SỐ NHÁNH LẺ TỰ QUY ĐỔI
+                       ======================================================== */
+                    <div className="space-y-2.5 pt-2 border-t border-purple-100/60">
+                      {/* Tồn hệ thống */}
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Tồn hệ thống:</span>
+                        <div className="text-right">
+                          <span className="font-bold text-gray-800">
+                            {formatQty(currentStock)} {m.baseUnit}
+                          </span>
+                          {factor > 1 && currentStock > 0 && (
+                            <span className="text-purple-700 text-[11px] font-medium ml-1.5">
+                              (~ {Math.floor(currentStock / factor)} {m.purchaseUnit}
+                              {currentStock % factor > 0
+                                ? ` + ${formatQty(Math.round((currentStock % factor) * 100) / 100)} ${m.baseUnit}`
+                                : ''})
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-                    <div>
-                      <div className="flex items-center justify-between mb-1">
-                        <Label
-                          htmlFor={`actual-${m.id}`}
-                          className="text-[11px] font-medium text-gray-700"
-                        >
-                          Số thực tế
-                        </Label>
-                        {hasDiff && (
-                          <button
-                            type="button"
-                            onClick={() => handleResetItem(m)}
-                            className="text-[10px] text-rose-600 hover:underline flex items-center gap-0.5"
-                            title="Đặt lại bằng tồn hệ thống"
-                          >
-                            <RotateCcw className="w-2.5 h-2.5" /> Hoàn tác
-                          </button>
-                        )}
+                      {/* Khung 2 mục điền kiểm đếm */}
+                      <div className="bg-purple-50/60 border border-purple-200/80 rounded-xl p-3 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5 text-purple-950 font-bold text-xs">
+                            <Layers className="w-3.5 h-3.5 text-purple-600" />
+                            <span>Điền cành nguyên & nhánh lẻ:</span>
+                          </div>
+                          {hasDiff && (
+                            <button
+                              type="button"
+                              onClick={() => handleResetItem(m)}
+                              className="text-[11px] text-purple-700 hover:text-purple-900 hover:underline flex items-center gap-1 font-semibold"
+                              title="Đặt lại bằng tồn hệ thống"
+                            >
+                              <RotateCcw className="w-3 h-3" /> Hoàn tác
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-2.5">
+                          {/* Mục 1: Số cành nguyên */}
+                          <div>
+                            <Label
+                              htmlFor={`pack-${m.id}`}
+                              className="text-[11px] font-semibold text-gray-700 block mb-1"
+                            >
+                              1. Số {m.purchaseUnit} nguyên
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id={`pack-${m.id}`}
+                                type="number"
+                                step="any"
+                                min="0"
+                                inputMode="decimal"
+                                placeholder="0"
+                                value={packCounts[m.id] ?? ''}
+                                onChange={(e) => handlePackChange(m, e.target.value)}
+                                className="h-10 text-right pr-12 font-bold rounded-xl bg-white border-purple-200 text-purple-950 focus:border-purple-500"
+                              />
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500 pointer-events-none">
+                                {m.purchaseUnit}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Mục 2: Số nhánh lẻ */}
+                          <div>
+                            <Label
+                              htmlFor={`loose-${m.id}`}
+                              className="text-[11px] font-semibold text-gray-700 block mb-1"
+                            >
+                              2. Số {m.baseUnit} lẻ
+                            </Label>
+                            <div className="relative">
+                              <Input
+                                id={`loose-${m.id}`}
+                                type="number"
+                                step="any"
+                                min="0"
+                                inputMode="decimal"
+                                placeholder="0"
+                                value={looseCounts[m.id] ?? ''}
+                                onChange={(e) => handleLooseChange(m, e.target.value)}
+                                className="h-10 text-right pr-12 font-bold rounded-xl bg-white border-purple-200 text-purple-950 focus:border-purple-500"
+                              />
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs font-medium text-gray-500 pointer-events-none">
+                                {m.baseUnit}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Dòng tự động quy đổi */}
+                        <div className="flex items-center justify-between pt-2 border-t border-purple-200/60 text-xs bg-white/70 px-2.5 py-1.5 rounded-lg">
+                          <span className="text-[11px] text-purple-800 font-medium">
+                            Tự quy đổi: ({packCounts[m.id] || 0} × {factor}) + {looseCounts[m.id] || 0}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-gray-500 text-[11px]">➔ Tổng thực tế:</span>
+                            <span className="font-extrabold text-sm text-purple-950">
+                              {formatQty(actualQty || 0)} {m.baseUnit}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="relative">
-                        <Input
-                          id={`actual-${m.id}`}
-                          type="number"
-                          step="any"
-                          min="0"
-                          inputMode="decimal"
-                          value={valStr}
-                          onChange={(e) =>
-                            handleActualCountChange(m.id, e.target.value)
-                          }
-                          className={`h-10 text-right pr-12 font-bold rounded-xl ${
-                            hasDiff
-                              ? diff > 0
-                                ? 'border-emerald-400 text-emerald-800 focus:ring-emerald-400'
-                                : 'border-red-400 text-red-800 focus:ring-red-400'
-                              : 'border-gray-200'
-                          }`}
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
-                          {m.baseUnit}
-                        </span>
+
+                      {/* Nút chuyển sang nhập thẳng tổng nếu muốn */}
+                      <div className="flex justify-end pt-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setDirectModeMap((prev) => ({ ...prev, [m.id]: true }))}
+                          className="text-[10px] text-gray-500 hover:text-purple-700 flex items-center gap-1 hover:underline font-medium"
+                        >
+                          <Calculator className="w-3 h-3" />
+                          Nhập thẳng tổng số {m.baseUnit}
+                        </button>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    /* ========================================================
+                       CHẾ ĐỘ NHẬP 1 MỤC (TRỰC TIẾP TỔNG HOẶC ĐƠN VỊ 1:1)
+                       ======================================================== */
+                    <div className="space-y-2 pt-1 border-t border-gray-50">
+                      <div className="grid grid-cols-2 gap-3 items-center">
+                        <div>
+                          <span className="text-[11px] text-muted-foreground block">
+                            Tồn hệ thống
+                          </span>
+                          <span className="text-sm font-semibold text-gray-800">
+                            {formatQty(currentStock)}{' '}
+                            <span className="text-xs font-normal text-muted-foreground">
+                              {m.baseUnit}
+                            </span>
+                          </span>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <Label
+                              htmlFor={`actual-${m.id}`}
+                              className="text-[11px] font-medium text-gray-700"
+                            >
+                              Số thực tế
+                            </Label>
+                            {hasDiff && (
+                              <button
+                                type="button"
+                                onClick={() => handleResetItem(m)}
+                                className="text-[10px] text-purple-700 hover:underline flex items-center gap-0.5 font-medium"
+                                title="Đặt lại bằng tồn hệ thống"
+                              >
+                                <RotateCcw className="w-2.5 h-2.5" /> Hoàn tác
+                              </button>
+                            )}
+                          </div>
+                          <div className="relative">
+                            <Input
+                              id={`actual-${m.id}`}
+                              type="number"
+                              step="any"
+                              min="0"
+                              inputMode="decimal"
+                              value={valStr}
+                              onChange={(e) =>
+                                handleActualCountChange(m.id, e.target.value)
+                              }
+                              className={`h-10 text-right pr-12 font-bold rounded-xl ${
+                                hasDiff
+                                  ? diff > 0
+                                    ? 'border-emerald-400 text-emerald-800 focus:ring-emerald-400'
+                                    : 'border-red-400 text-red-800 focus:ring-red-400'
+                                  : 'border-gray-200'
+                              }`}
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                              {m.baseUnit}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Nút bật chế độ Cành & Nhánh */}
+                      <div className="flex justify-end pt-1">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (factor <= 1) {
+                              const promptVal = prompt(
+                                `Nhập số ${m.baseUnit} trong 1 ${m.purchaseUnit} (hệ số quy đổi):`,
+                                '5'
+                              );
+                              if (promptVal && parseFloat(promptVal) > 1) {
+                                setCustomFactors((prev) => ({ ...prev, [m.id]: promptVal }));
+                                const f = parseFloat(promptVal);
+                                const whole = Math.floor(currentStock / f);
+                                const remainder = Math.round((currentStock - whole * f) * 100) / 100;
+                                setPackCounts((prev) => ({ ...prev, [m.id]: whole.toString() }));
+                                setLooseCounts((prev) => ({ ...prev, [m.id]: remainder.toString() }));
+                              } else {
+                                return;
+                              }
+                            }
+                            setDirectModeMap((prev) => ({ ...prev, [m.id]: false }));
+                          }}
+                          className="text-[10px] text-purple-700 hover:text-purple-900 flex items-center gap-1 font-semibold hover:underline"
+                        >
+                          <Layers className="w-3 h-3 text-purple-600" />
+                          Tách theo {m.purchaseUnit} & {m.baseUnit} lẻ
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
@@ -548,7 +782,7 @@ export default function StockCheckPage() {
             </Button>
             <Button
               type="button"
-              className="h-11 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-medium gap-1.5 shadow-sm px-5"
+              className="h-11 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold gap-1.5 shadow-sm px-5"
               onClick={handleSave}
               disabled={submitting || summary.totalAdjusted === 0}
             >
