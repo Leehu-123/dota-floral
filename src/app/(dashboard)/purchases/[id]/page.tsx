@@ -13,6 +13,7 @@ import {
   Layers,
   FileText,
   AlertTriangle,
+  Pencil,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -152,7 +153,7 @@ export default function PurchaseDetailPage() {
   return (
     <div className="space-y-4 pb-12">
       {/* Top Bar */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <button
           onClick={() => router.push('/purchases')}
           className="flex items-center gap-1.5 text-sm font-bold text-purple-900 hover:text-purple-950 transition-colors py-2 pr-3 -ml-1 rounded-lg"
@@ -161,16 +162,31 @@ export default function PurchaseDetailPage() {
           <span>Danh sách phiếu nhập</span>
         </button>
 
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl gap-1.5 h-9 font-bold"
-          onClick={() => setShowDeleteDialog(true)}
-        >
-          <Trash2 className="w-4 h-4" />
-          <span>Xóa phiếu</span>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="rounded-xl border-purple-300 text-purple-950 hover:bg-purple-100 font-bold gap-1.5 h-9"
+            asChild
+          >
+            <Link href={`/purchases/${id}/edit`}>
+              <Pencil className="w-3.5 h-3.5 text-purple-700" />
+              <span>Chỉnh sửa</span>
+            </Link>
+          </Button>
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 rounded-xl gap-1.5 h-9 font-bold"
+            onClick={() => setShowDeleteDialog(true)}
+          >
+            <Trash2 className="w-4 h-4" />
+            <span>Xóa phiếu</span>
+          </Button>
+        </div>
       </div>
 
       {/* Main Info Card */}

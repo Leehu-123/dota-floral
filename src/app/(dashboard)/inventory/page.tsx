@@ -204,30 +204,44 @@ export default function InventoryPage() {
             Nguyên vật liệu & Hoa bó sẵn tại tiệm
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            variant="outline"
-            className="rounded-xl border-purple-200 text-purple-900 hover:bg-purple-100 font-bold text-xs gap-1.5 h-9"
-            asChild
-          >
-            <Link href="/purchases">
-              <FileText className="w-4 h-4 text-purple-700" />
-              <span>Phiếu nhập hàng</span>
-            </Link>
-          </Button>
-
+        <div className="flex items-center gap-2 flex-wrap">
           {activeTab === 'materials' ? (
-            <Button
-              size="sm"
-              className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-sm gap-1.5 h-9 font-bold text-xs"
-              asChild
-            >
-              <Link href="/purchases/new">
-                <Plus className="w-4 h-4" />
-                <span>Nhập hàng</span>
-              </Link>
-            </Button>
+            <>
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl border-purple-200 text-purple-900 hover:bg-purple-100 font-bold text-xs gap-1.5 h-9"
+                asChild
+              >
+                <Link href="/purchases">
+                  <FileText className="w-4 h-4 text-purple-700" />
+                  <span>Phiếu nhập</span>
+                </Link>
+              </Button>
+
+              <Button
+                size="sm"
+                variant="outline"
+                className="rounded-xl border-purple-300 text-purple-950 hover:bg-purple-100 font-bold text-xs gap-1.5 h-9"
+                asChild
+              >
+                <Link href="/purchases/new">
+                  <Download className="w-4 h-4 text-purple-700" />
+                  <span>Nhập hàng</span>
+                </Link>
+              </Button>
+
+              <Button
+                size="sm"
+                className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white shadow-sm gap-1.5 h-9 font-bold text-xs"
+                asChild
+              >
+                <Link href="/inventory/materials/new">
+                  <Plus className="w-4 h-4" />
+                  <span>Thêm nguyên liệu</span>
+                </Link>
+              </Button>
+            </>
           ) : (
             <Button
               size="sm"

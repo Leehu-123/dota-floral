@@ -3,6 +3,7 @@
 import { signIn } from 'next-auth/react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -35,7 +36,16 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#d4c8ee]/60 via-[#f9f7fd] to-[#d4c8ee]/40 p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-3">🌸</div>
+          <div className="w-20 h-20 mx-auto mb-3 rounded-2xl overflow-hidden shadow-md border-2 border-purple-200/80 bg-white flex items-center justify-center">
+            <Image
+              src="/logo.jpg"
+              alt="Dota Floral Logo"
+              width={80}
+              height={80}
+              className="w-full h-full object-cover"
+              priority
+            />
+          </div>
           <h1 className="text-2xl font-black text-purple-950 tracking-tight">Dota Floral</h1>
           <p className="text-sm text-purple-800 font-semibold mt-1">Quản lý tiệm hoa</p>
         </div>

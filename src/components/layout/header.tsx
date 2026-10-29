@@ -3,6 +3,7 @@
 import { useSession, signOut } from 'next-auth/react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useState } from 'react';
 import {
   LogOut,
@@ -44,7 +45,16 @@ export function Header({ title = 'Dota Floral' }: HeaderProps) {
         {/* Brand logo & title */}
         <div className="flex items-center gap-6 lg:gap-8">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <span className="text-2xl transition-transform group-hover:scale-110">🌸</span>
+            <div className="relative w-9 h-9 rounded-full overflow-hidden shadow-xs border border-purple-200/80 bg-white flex items-center justify-center shrink-0">
+              <Image
+                src="/logo.jpg"
+                alt="Dota Floral"
+                width={36}
+                height={36}
+                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+                priority
+              />
+            </div>
             <div>
               <h1 className="text-lg md:text-xl font-black text-purple-950 tracking-tight leading-none">
                 {title}
