@@ -237,6 +237,10 @@ export async function PUT(
       });
 
       return result;
+    },
+    {
+      maxWait: 15000,
+      timeout: 60000,
     });
 
     return NextResponse.json(formatProductResponse(updatedProduct, true));

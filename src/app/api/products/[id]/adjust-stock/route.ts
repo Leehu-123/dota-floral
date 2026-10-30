@@ -58,6 +58,10 @@ export async function POST(
       });
 
       return p;
+    },
+    {
+      maxWait: 15000,
+      timeout: 60000,
     });
 
     return NextResponse.json({

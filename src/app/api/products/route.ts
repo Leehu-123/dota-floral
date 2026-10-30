@@ -203,6 +203,10 @@ export async function POST(request: NextRequest) {
       });
 
       return product;
+    },
+    {
+      maxWait: 15000,
+      timeout: 60000,
     });
 
     return NextResponse.json(formatProductResponse(createdProduct), { status: 201 });

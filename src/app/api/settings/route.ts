@@ -43,18 +43,26 @@ async function updateSettings(request: NextRequest) {
       );
     }
 
-    // Cập nhật hoặc tạo mới từng cài đặt trong Prisma transaction
+    // Cập nhật hoặc tạo mới từng cài đặt trong Prisma interactive transaction
     await prisma.$transaction(
-      entries.map(([key, value]) =>
-        prisma.setting.upsert({
-          where: { key },
-          update: { value: String(value ?? '') },
-          create: {
-            key,
-            value: String(value ?? ''),
-          },
-        })
-      )
+      async (tx) => {
+        await Promise.all(
+          entries.map(([key, value]) =>
+            tx.setting.upsert({
+              where: { key },
+              update: { value: String(value ?? '') },
+              create: {
+                key,
+                value: String(value ?? ''),
+              },
+            })
+          )
+        );
+      },
+      {
+        maxWait: 15000,
+        timeout: 60000,
+      }
     );
 
     const updatedSettings = await prisma.setting.findMany({
@@ -67,10 +75,10 @@ async function updateSettings(request: NextRequest) {
     }
 
     return NextResponse.json(resultMap);
-  } catch (error) {
+  } catch (error: any) {
     console.error('Lỗi khi cập nhật cài đặt hệ thống:', error);
     return NextResponse.json(
-      { error: 'Không thể cập nhật cài đặt hệ thống' },
+      { error: error?.message || 'Không thể cập nhật cài đặt hệ thống' },
       { status: 500 }
     );
   }

@@ -150,6 +150,46 @@ export async function PUT(
           where: { orderId: id },
         });
 
+        // Batch query các sản phẩm và vật tư cần thiết
+        const productIds = Array.from(
+          new Set(
+            data.lines
+              .filter((l) => !l.isCustom && l.productId)
+              .map((l) => l.productId as string)
+          )
+        );
+
+        const customMaterialIds = Array.from(
+          new Set(
+            data.lines
+              .filter((l) => l.isCustom || !l.productId)
+              .flatMap((l) => (l.materials || []).map((m) => m.materialId))
+          )
+        );
+
+        const [productsData, customMaterialsData] = await Promise.all([
+          productIds.length > 0
+            ? tx.product.findMany({
+                where: { id: { in: productIds }, isDeleted: false },
+                include: {
+                  materials: {
+                    include: {
+                      material: true,
+                    },
+                  },
+                },
+              })
+            : Promise.resolve([]),
+          customMaterialIds.length > 0
+            ? tx.material.findMany({
+                where: { id: { in: customMaterialIds }, isDeleted: false },
+              })
+            : Promise.resolve([]),
+        ]);
+
+        const productMap = new Map(productsData.map((p) => [p.id, p]));
+        const customMaterialMap = new Map(customMaterialsData.map((m) => [m.id, m]));
+
         // Xử lý và tạo mới các dòng OrderLine
         const preparedLines = [];
         let newTotalCost = 0;
@@ -165,16 +205,7 @@ export async function PUT(
           let snapshotCost = 0;
 
           if (!isCustomLine && line.productId) {
-            const product = await tx.product.findFirst({
-              where: { id: line.productId, isDeleted: false },
-              include: {
-                materials: {
-                  include: {
-                    material: true,
-                  },
-                },
-              },
-            });
+            const product = productMap.get(line.productId);
 
             if (!product) {
               throw new Error(`PRODUCT_NOT_FOUND_${line.productId}`);
@@ -200,9 +231,7 @@ export async function PUT(
             snapshotCost = Math.round(materialCostPerUnit + laborCost + overheadCost);
           } else {
             for (const m of line.materials) {
-              const mat = await tx.material.findFirst({
-                where: { id: m.materialId, isDeleted: false },
-              });
+              const mat = customMaterialMap.get(m.materialId);
 
               if (!mat) {
                 throw new Error(`MATERIAL_NOT_FOUND_${m.materialId}`);
@@ -239,28 +268,30 @@ export async function PUT(
 
         totalCost = newTotalCost;
 
-        // Tạo các dòng mới
-        for (const pl of preparedLines) {
-          await tx.orderLine.create({
-            data: {
-              orderId: id,
-              productId: pl.productId,
-              productName: pl.productName,
-              quantity: pl.quantity,
-              unitPrice: pl.unitPrice,
-              lineTotal: pl.lineTotal,
-              snapshotCost: pl.snapshotCost,
-              isCustom: pl.isCustom,
-              materials: {
-                create: pl.materials.map((m) => ({
-                  materialId: m.materialId,
-                  quantity: m.quantity,
-                  unitCost: m.unitCost,
-                })),
+        // Tạo các dòng mới song song
+        await Promise.all(
+          preparedLines.map((pl) =>
+            tx.orderLine.create({
+              data: {
+                orderId: id,
+                productId: pl.productId,
+                productName: pl.productName,
+                quantity: pl.quantity,
+                unitPrice: pl.unitPrice,
+                lineTotal: pl.lineTotal,
+                snapshotCost: pl.snapshotCost,
+                isCustom: pl.isCustom,
+                materials: {
+                  create: pl.materials.map((m) => ({
+                    materialId: m.materialId,
+                    quantity: m.quantity,
+                    unitCost: m.unitCost,
+                  })),
+                },
               },
-            },
-          });
-        }
+            })
+          )
+        );
       } else {
         sumLineTotals = existingOrder.lines.reduce(
           (sum, l) => sum + Number(l.lineTotal),
@@ -317,6 +348,10 @@ export async function PUT(
           },
         },
       });
+    },
+    {
+      maxWait: 15000,
+      timeout: 60000,
     });
 
     const formatted = formatOrder(updated);
@@ -356,7 +391,7 @@ export async function PUT(
     }
 
     return NextResponse.json(
-      { error: 'Không thể cập nhật đơn hàng' },
+      { error: error?.message || 'Không thể cập nhật đơn hàng' },
       { status: 500 }
     );
   }

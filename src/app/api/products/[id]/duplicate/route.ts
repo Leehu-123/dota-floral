@@ -64,13 +64,17 @@ export async function POST(
       });
 
       return cloned;
+    },
+    {
+      maxWait: 15000,
+      timeout: 60000,
     });
 
     return NextResponse.json(formatProductResponse(clonedProduct, true), { status: 201 });
-  } catch (error) {
+  } catch (error: any) {
     console.error('Lỗi khi nhân bản mẫu sản phẩm:', error);
     return NextResponse.json(
-      { error: 'Không thể nhân bản mẫu sản phẩm' },
+      { error: error?.message || 'Không thể nhân bản mẫu sản phẩm' },
       { status: 500 }
     );
   }

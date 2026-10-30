@@ -261,7 +261,47 @@ export async function POST(request: NextRequest) {
       // 3. Lấy phí kênh bán hàng từ Settings
       const channelFeePercent = await getChannelFeePercent(tx, channel);
 
-      // 4. Xử lý từng dòng mặt hàng (OrderLine)
+      // 4. Batch query tất cả products và materials cần thiết
+      const productIds = Array.from(
+        new Set(
+          lines
+            .filter((l) => !l.isCustom && l.productId)
+            .map((l) => l.productId as string)
+        )
+      );
+
+      const customMaterialIds = Array.from(
+        new Set(
+          lines
+            .filter((l) => l.isCustom || !l.productId)
+            .flatMap((l) => (l.materials || []).map((m) => m.materialId))
+        )
+      );
+
+      const [productsData, customMaterialsData] = await Promise.all([
+        productIds.length > 0
+          ? tx.product.findMany({
+              where: { id: { in: productIds }, isDeleted: false },
+              include: {
+                materials: {
+                  include: {
+                    material: true,
+                  },
+                },
+              },
+            })
+          : Promise.resolve([]),
+        customMaterialIds.length > 0
+          ? tx.material.findMany({
+              where: { id: { in: customMaterialIds }, isDeleted: false },
+            })
+          : Promise.resolve([]),
+      ]);
+
+      const productMap = new Map(productsData.map((p) => [p.id, p]));
+      const customMaterialMap = new Map(customMaterialsData.map((m) => [m.id, m]));
+
+      // 5. Xử lý từng dòng mặt hàng (OrderLine)
       const preparedLines = [];
       let sumLineTotals = 0;
       let totalCost = 0;
@@ -278,16 +318,7 @@ export async function POST(request: NextRequest) {
 
         if (!isCustomLine && line.productId) {
           // a. Mẫu sản phẩm có sẵn (Template)
-          const product = await tx.product.findFirst({
-            where: { id: line.productId, isDeleted: false },
-            include: {
-              materials: {
-                include: {
-                  material: true,
-                },
-              },
-            },
-          });
+          const product = productMap.get(line.productId);
 
           if (!product) {
             throw new Error(`PRODUCT_NOT_FOUND_${line.productId}`);
@@ -314,9 +345,7 @@ export async function POST(request: NextRequest) {
         } else {
           // b. Đơn đặt riêng / Tùy biến (Custom)
           for (const m of line.materials) {
-            const mat = await tx.material.findFirst({
-              where: { id: m.materialId, isDeleted: false },
-            });
+            const mat = customMaterialMap.get(m.materialId);
 
             if (!mat) {
               throw new Error(`MATERIAL_NOT_FOUND_${m.materialId}`);
@@ -419,6 +448,10 @@ export async function POST(request: NextRequest) {
       });
 
       return order;
+    },
+    {
+      maxWait: 15000,
+      timeout: 60000,
     });
 
     const formatted = formatOrder(result);
@@ -444,7 +477,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Không thể tạo đơn hàng mới' },
+      { error: error?.message || 'Không thể tạo đơn hàng mới' },
       { status: 500 }
     );
   }

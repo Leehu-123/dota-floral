@@ -83,13 +83,12 @@ export async function POST(
     );
 
     // 4. Thực hiện transaction: Trừ kho nguyên liệu & Tăng tồn kho thành phẩm
-    const result = await prisma.$transaction(async (tx) => {
-      // 4a. Trừ từng nguyên liệu và ghi StockMovement
-      for (const pm of product.materials) {
-        const deductQty = Number(pm.quantity) * quantity;
-
-        await tx.stockMovement.create({
-          data: {
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // 4a. Batch ghi StockMovement cho các nguyên liệu
+        const movementsToCreate = product.materials.map((pm) => {
+          const deductQty = Number(pm.quantity) * quantity;
+          return {
             materialId: pm.materialId,
             type: 'produce_out',
             quantity: -deductQty,
@@ -97,43 +96,59 @@ export async function POST(
             refType: 'produce_product',
             refId: product.id,
             note: `Bó sẵn ${quantity} bó "${product.name}" vào kho thành phẩm`,
-          },
+          };
         });
 
-        await tx.material.update({
-          where: { id: pm.materialId },
+        if (movementsToCreate.length > 0) {
+          await tx.stockMovement.createMany({
+            data: movementsToCreate,
+          });
+        }
+
+        // 4b. Trừ kho nguyên liệu song song
+        await Promise.all(
+          product.materials.map((pm) => {
+            const deductQty = Number(pm.quantity) * quantity;
+            return tx.material.update({
+              where: { id: pm.materialId },
+              data: {
+                currentStock: {
+                  decrement: deductQty,
+                },
+              },
+            });
+          })
+        );
+
+        // 4c. Tăng tồn kho thành phẩm của Product
+        const updatedProduct = await tx.product.update({
+          where: { id: product.id },
           data: {
-            currentStock: {
-              decrement: deductQty,
+            stock: {
+              increment: quantity,
             },
           },
         });
-      }
 
-      // 4b. Tăng tồn kho thành phẩm của Product
-      const updatedProduct = await tx.product.update({
-        where: { id: product.id },
-        data: {
-          stock: {
-            increment: quantity,
+        // 4d. Ghi nhận ProductMovement
+        await tx.productMovement.create({
+          data: {
+            productId: product.id,
+            type: 'produce',
+            quantity: quantity,
+            unitCost: costs.totalCost,
+            refType: 'manual',
+            note: `Bó sẵn ${quantity} bó vào kho thành phẩm tại tiệm`,
           },
-        },
-      });
+        });
 
-      // 4c. Ghi nhận ProductMovement
-      await tx.productMovement.create({
-        data: {
-          productId: product.id,
-          type: 'produce',
-          quantity: quantity,
-          unitCost: costs.totalCost,
-          refType: 'manual',
-          note: `Bó sẵn ${quantity} bó vào kho thành phẩm tại tiệm`,
-        },
-      });
-
-      return updatedProduct;
-    });
+        return updatedProduct;
+      },
+      {
+        maxWait: 15000,
+        timeout: 60000,
+      }
+    );
 
     return NextResponse.json({
       success: true,

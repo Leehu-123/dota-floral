@@ -75,15 +75,43 @@ export async function PUT(
 
       // Kiểm tra các chuyển đổi trạng thái hợp lệ
       if (currentStatus === 'new' && (newStatus === 'in_progress' || newStatus === 'completed')) {
-        // TRANSITION: new -> in_progress hoặc completed (Bán nhanh tại quầy): DEDUCT STOCK
-        // 1. Phân loại: Dòng lấy từ hoa có sẵn (fromStock) vs Dòng làm mới từ nguyên liệu
+        // TRANSITION: new -> in_progress hoặc completed: DEDUCT STOCK
+        // 1. Thu thập ID sản phẩm và nguyên liệu để query 1 lần
+        const productIds = Array.from(
+          new Set(
+            order.lines
+              .filter((l) => l.fromStock && l.productId)
+              .map((l) => l.productId as string)
+          )
+        );
+
+        const customLines = order.lines.filter((l) => !l.fromStock || !l.productId);
+        const materialIds = Array.from(
+          new Set(
+            customLines.flatMap((l) => l.materials.map((m) => m.materialId))
+          )
+        );
+
+        const [products, materials] = await Promise.all([
+          productIds.length > 0
+            ? tx.product.findMany({ where: { id: { in: productIds } } })
+            : Promise.resolve([]),
+          materialIds.length > 0
+            ? tx.material.findMany({ where: { id: { in: materialIds } } })
+            : Promise.resolve([]),
+        ]);
+
+        const prodMap = new Map(products.map((p) => [p.id, p]));
+        const matMap = new Map(materials.map((m) => [m.id, m]));
+
+        const productMovementsToCreate = [];
+        const stockMovementsToCreate = [];
+        const productDeductions = new Map<string, number>();
+        const materialDeductions = new Map<string, number>();
+
         for (const line of order.lines) {
           if (line.fromStock && line.productId) {
-            // Lấy từ kho hoa thành phẩm có sẵn tại tiệm
-            const product = await tx.product.findUnique({
-              where: { id: line.productId },
-            });
-
+            const product = prodMap.get(line.productId);
             if (product) {
               if (product.stock < line.quantity) {
                 warnings.push(
@@ -91,88 +119,94 @@ export async function PUT(
                 );
               }
 
-              // Trừ tồn kho thành phẩm
-              await tx.product.update({
-                where: { id: line.productId },
-                data: {
-                  stock: {
-                    decrement: line.quantity,
-                  },
-                },
-              });
+              const curDeduct = productDeductions.get(line.productId) || 0;
+              productDeductions.set(line.productId, curDeduct + line.quantity);
 
-              // Ghi biến động kho thành phẩm
-              await tx.productMovement.create({
-                data: {
-                  productId: line.productId,
-                  type: 'sell',
-                  quantity: -line.quantity,
-                  unitCost: line.snapshotCost,
-                  refType: 'order',
-                  refId: order.id,
-                  note: `Bán hoa có sẵn cho đơn ${order.code}`,
-                },
+              productMovementsToCreate.push({
+                productId: line.productId,
+                type: 'sell',
+                quantity: -line.quantity,
+                unitCost: line.snapshotCost,
+                refType: 'order',
+                refId: order.id,
+                note: `Bán hoa có sẵn cho đơn ${order.code}`,
               });
             }
           } else {
-            // Làm mới theo công thức: Trừ kho nguyên vật liệu
             for (const olm of line.materials) {
               const deductQty = Number(olm.quantity) * line.quantity;
               if (deductQty > 0) {
-                const mat = await tx.material.findUnique({
-                  where: { id: olm.materialId },
-                });
-
+                const mat = matMap.get(olm.materialId);
                 if (mat && Number(mat.currentStock) < deductQty) {
                   warnings.push(
                     `Vật tư "${mat.name}" không đủ tồn kho (còn ${mat.currentStock} ${mat.baseUnit}, cần ${deductQty} ${mat.baseUnit})`
                   );
                 }
 
-                await tx.stockMovement.create({
-                  data: {
-                    materialId: olm.materialId,
-                    type: 'order_out',
-                    quantity: -deductQty,
-                    unitCost: olm.unitCost,
-                    refType: 'order',
-                    refId: order.id,
-                    note: `Xuất cho đơn ${order.code}`,
-                  },
-                });
+                const curMatDeduct = materialDeductions.get(olm.materialId) || 0;
+                materialDeductions.set(olm.materialId, curMatDeduct + deductQty);
 
-                await tx.material.update({
-                  where: { id: olm.materialId },
-                  data: {
-                    currentStock: {
-                      decrement: deductQty,
-                    },
-                  },
+                stockMovementsToCreate.push({
+                  materialId: olm.materialId,
+                  type: 'order_out',
+                  quantity: -deductQty,
+                  unitCost: olm.unitCost,
+                  refType: 'order',
+                  refId: order.id,
+                  note: `Xuất cho đơn ${order.code}`,
                 });
               }
             }
           }
+        }
+
+        // Batch insert movements
+        if (productMovementsToCreate.length > 0) {
+          await tx.productMovement.createMany({ data: productMovementsToCreate });
+        }
+        if (stockMovementsToCreate.length > 0) {
+          await tx.stockMovement.createMany({ data: stockMovementsToCreate });
+        }
+
+        // Cập nhật số lượng tồn kho song song
+        const updatePromises: Promise<any>[] = [];
+        for (const [pId, qty] of productDeductions.entries()) {
+          updatePromises.push(
+            tx.product.update({
+              where: { id: pId },
+              data: { stock: { decrement: qty } },
+            })
+          );
+        }
+        for (const [mId, qty] of materialDeductions.entries()) {
+          updatePromises.push(
+            tx.material.update({
+              where: { id: mId },
+              data: { currentStock: { decrement: qty } },
+            })
+          );
+        }
+        if (updatePromises.length > 0) {
+          await Promise.all(updatePromises);
         }
       } else if (currentStatus === 'in_progress' && newStatus === 'completed') {
         // TRANSITION: in_progress -> completed: Không biến động kho
       } else if (currentStatus === 'completed' && newStatus === 'delivered') {
         // TRANSITION: completed -> delivered: Không biến động kho
       } else if (newStatus === 'cancelled') {
-        // TRANSITION: any (except delivered) -> cancelled: RETURN STOCK
-        for (const line of order.lines) {
-          if (line.fromStock && line.productId) {
-            // Hoàn lại kho hoa thành phẩm
-            await tx.product.update({
-              where: { id: line.productId },
-              data: {
-                stock: {
-                  increment: line.quantity,
-                },
-              },
-            });
+        // TRANSITION: only return stock if order was previously in_progress or completed (where stock was actually deducted)
+        if (currentStatus !== 'new') {
+          const productMovementsToCreate = [];
+          const stockMovementsToCreate = [];
+          const productReturns = new Map<string, number>();
+          const materialReturns = new Map<string, number>();
 
-            await tx.productMovement.create({
-              data: {
+          for (const line of order.lines) {
+            if (line.fromStock && line.productId) {
+              const cur = productReturns.get(line.productId) || 0;
+              productReturns.set(line.productId, cur + line.quantity);
+
+              productMovementsToCreate.push({
                 productId: line.productId,
                 type: 'return',
                 quantity: line.quantity,
@@ -180,24 +214,15 @@ export async function PUT(
                 refType: 'order',
                 refId: order.id,
                 note: `Hoàn kho thành phẩm do hủy đơn ${order.code}`,
-              },
-            });
+              });
+            } else {
+              for (const olm of line.materials) {
+                const returnQty = Number(olm.quantity) * line.quantity;
+                if (returnQty > 0) {
+                  const cur = materialReturns.get(olm.materialId) || 0;
+                  materialReturns.set(olm.materialId, cur + returnQty);
 
-            // Xóa biến động sell của đơn hàng này
-            await tx.productMovement.deleteMany({
-              where: {
-                refType: 'order',
-                refId: order.id,
-                type: 'sell',
-              },
-            });
-          } else {
-            // Hoàn lại kho nguyên vật liệu
-            for (const olm of line.materials) {
-              const returnQty = Number(olm.quantity) * line.quantity;
-              if (returnQty > 0) {
-                await tx.stockMovement.create({
-                  data: {
+                  stockMovementsToCreate.push({
                     materialId: olm.materialId,
                     type: 'order_return',
                     quantity: returnQty,
@@ -205,28 +230,58 @@ export async function PUT(
                     refType: 'order',
                     refId: order.id,
                     note: `Hoàn kho do hủy đơn ${order.code}`,
-                  },
-                });
-
-                await tx.material.update({
-                  where: { id: olm.materialId },
-                  data: {
-                    currentStock: {
-                      increment: returnQty,
-                    },
-                  },
-                });
+                  });
+                }
               }
             }
+          }
 
-            // Xóa các biến động order_out gốc của đơn hàng này
-            await tx.stockMovement.deleteMany({
+          // Xóa biến động bán / xuất gốc của đơn hàng này
+          await Promise.all([
+            tx.productMovement.deleteMany({
+              where: {
+                refType: 'order',
+                refId: order.id,
+                type: 'sell',
+              },
+            }),
+            tx.stockMovement.deleteMany({
               where: {
                 refType: 'order',
                 refId: order.id,
                 type: 'order_out',
               },
-            });
+            }),
+          ]);
+
+          // Batch insert return movements
+          if (productMovementsToCreate.length > 0) {
+            await tx.productMovement.createMany({ data: productMovementsToCreate });
+          }
+          if (stockMovementsToCreate.length > 0) {
+            await tx.stockMovement.createMany({ data: stockMovementsToCreate });
+          }
+
+          // Hoàn kho song song
+          const returnPromises: Promise<any>[] = [];
+          for (const [pId, qty] of productReturns.entries()) {
+            returnPromises.push(
+              tx.product.update({
+                where: { id: pId },
+                data: { stock: { increment: qty } },
+              })
+            );
+          }
+          for (const [mId, qty] of materialReturns.entries()) {
+            returnPromises.push(
+              tx.material.update({
+                where: { id: mId },
+                data: { currentStock: { increment: qty } },
+              })
+            );
+          }
+          if (returnPromises.length > 0) {
+            await Promise.all(returnPromises);
           }
         }
       } else {
@@ -263,6 +318,10 @@ export async function PUT(
         order: updatedOrder,
         warnings,
       };
+    },
+    {
+      maxWait: 15000,
+      timeout: 60000,
     });
 
     const formatted = formatOrder(result.order);
@@ -311,7 +370,7 @@ export async function PUT(
     }
 
     return NextResponse.json(
-      { error: 'Không thể cập nhật trạng thái đơn hàng' },
+      { error: error?.message || 'Không thể cập nhật trạng thái đơn hàng' },
       { status: 500 }
     );
   }
