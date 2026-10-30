@@ -31,67 +31,120 @@ export async function POST(request: NextRequest) {
 
     const { items, note } = validated.data;
 
-    const result = await prisma.$transaction(async (tx) => {
-      const adjustments = [];
+    // 1. Lấy danh sách materialIds cần kiểm tra (loại bỏ trùng lặp nếu có)
+    const materialIds = Array.from(new Set(items.map((i) => i.materialId)));
 
-      for (const item of items) {
-        const material = await tx.material.findFirst({
+    const result = await prisma.$transaction(
+      async (tx) => {
+        // Query toàn bộ vật tư trong 1 lần gọi duy nhất thay vì lặp từng câu lệnh
+        const materials = await tx.material.findMany({
           where: {
-            id: item.materialId,
+            id: { in: materialIds },
             isDeleted: false,
           },
         });
 
-        if (!material) {
-          throw new Error(`NOT_FOUND_${item.materialId}`);
+        const materialMap = new Map(materials.map((m) => [m.id, m]));
+
+        // Kiểm tra vật tư có tồn tại không
+        for (const id of materialIds) {
+          if (!materialMap.has(id)) {
+            throw new Error(`NOT_FOUND_${id}`);
+          }
         }
 
-        const currentStock = Number(material.currentStock);
-        const actualQty = Number(item.actualQty);
-        const diff = actualQty - currentStock;
+        const movementsToCreate: Array<{
+          materialId: string;
+          type: string;
+          quantity: number;
+          unitCost: number;
+          refType: string;
+          note: string;
+        }> = [];
 
-        if (diff !== 0) {
-          const autoNote =
-            diff > 0
-              ? `Kiểm kho: thừa ${diff} ${material.baseUnit}`
-              : `Kiểm kho: thiếu ${Math.abs(diff)} ${material.baseUnit}`;
+        const updates: Array<{
+          id: string;
+          actualQty: number;
+        }> = [];
 
-          const movement = await tx.stockMovement.create({
-            data: {
+        const adjustments: Array<{
+          materialId: string;
+          materialName: string;
+          baseUnit: string;
+          previousStock: number;
+          actualStock: number;
+          difference: number;
+        }> = [];
+
+        for (const item of items) {
+          const material = materialMap.get(item.materialId)!;
+          const currentStock = Number(material.currentStock);
+          const actualQty = Math.round(Number(item.actualQty) * 10000) / 10000;
+          const diff = Math.round((actualQty - currentStock) * 10000) / 10000;
+
+          if (Math.abs(diff) > 0.0001) {
+            const autoNote =
+              diff > 0
+                ? `Kiểm kho: thừa ${diff} ${material.baseUnit}`
+                : `Kiểm kho: thiếu ${Math.abs(diff)} ${material.baseUnit}`;
+
+            movementsToCreate.push({
               materialId: item.materialId,
               type: 'adjustment',
               quantity: diff,
-              unitCost: material.avgCost,
+              unitCost: Number(material.avgCost) || 0,
               refType: 'stock_check',
               note: note ? `${note} (${autoNote})` : autoNote,
-            },
-          });
+            });
 
-          await tx.material.update({
-            where: { id: item.materialId },
-            data: {
-              currentStock: actualQty,
-            },
-          });
+            updates.push({
+              id: item.materialId,
+              actualQty,
+            });
 
-          adjustments.push({
-            materialId: item.materialId,
-            materialName: material.name,
-            baseUnit: material.baseUnit,
-            previousStock: currentStock,
-            actualStock: actualQty,
-            difference: diff,
-            movementId: movement.id,
+            adjustments.push({
+              materialId: item.materialId,
+              materialName: material.name,
+              baseUnit: material.baseUnit,
+              previousStock: currentStock,
+              actualStock: actualQty,
+              difference: diff,
+            });
+          }
+        }
+
+        // Batch insert tất cả stock movements trong 1 lần gọi duy nhất
+        if (movementsToCreate.length > 0) {
+          await tx.stockMovement.createMany({
+            data: movementsToCreate,
           });
         }
-      }
 
-      return {
-        totalChecked: items.length,
-        adjustedCount: adjustments.length,
-        adjustments,
-      };
-    });
+        // Cập nhật tồn kho tất cả vật tư song song
+        if (updates.length > 0) {
+          await Promise.all(
+            updates.map((u) =>
+              tx.material.update({
+                where: { id: u.id },
+                data: {
+                  currentStock: u.actualQty,
+                },
+              })
+            )
+          );
+        }
+
+        return {
+          totalChecked: items.length,
+          adjustedCount: adjustments.length,
+          adjustments,
+        };
+      },
+      {
+        maxWait: 15000, // Chờ connection pool tối đa 15s
+        timeout: 60000, // Timeout giao dịch 60s
+      }
+    );
 
     return NextResponse.json({
       message: 'Kiểm kho hoàn tất thành công',
@@ -109,7 +162,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Không thể thực hiện kiểm kho' },
+      { error: error?.message || 'Không thể thực hiện kiểm kho' },
       { status: 500 }
     );
   }
