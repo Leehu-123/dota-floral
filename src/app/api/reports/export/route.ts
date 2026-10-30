@@ -244,6 +244,7 @@ export async function GET(request: NextRequest) {
           avgCost: number;
           orderUsage: number;
           produceUsage: number;
+          stockCheckUsage: number;
         }
       >();
 
@@ -268,6 +269,7 @@ export async function GET(request: NextRequest) {
               avgCost: unitCost,
               orderUsage: 0,
               produceUsage: 0,
+              stockCheckUsage: 0,
             };
 
             existing.quantityUsed += qty;
@@ -311,11 +313,55 @@ export async function GET(request: NextRequest) {
           avgCost: unitCost,
           orderUsage: 0,
           produceUsage: 0,
+          stockCheckUsage: 0,
         };
 
         existing.quantityUsed += qty;
         existing.totalCost += cost;
         existing.produceUsage += qty;
+        if (existing.avgCost === 0 && unitCost > 0) existing.avgCost = unitCost;
+        materialUsageMap.set(mId, existing);
+      }
+
+      // Lấy thêm từ kiểm kho / hao hụt vật tư
+      const stockCheckMovements = await prisma.stockMovement.findMany({
+        where: {
+          createdAt: {
+            gte: fromDate,
+            lte: toDate,
+          },
+          refType: 'stock_check',
+          quantity: { lt: 0 },
+        },
+        include: {
+          material: true,
+        },
+      });
+
+      for (const scm of stockCheckMovements) {
+        const mId = scm.materialId;
+        const mName = scm.material?.name || 'Vật tư';
+        const mGroup = scm.material?.group || 'khac';
+        const mBaseUnit = scm.material?.baseUnit || '';
+        const qty = Math.abs(Number(scm.quantity)) || 0;
+        const unitCost = Number(scm.unitCost) || Number(scm.material?.avgCost) || 0;
+        const cost = qty * unitCost;
+
+        const existing = materialUsageMap.get(mId) || {
+          name: mName,
+          group: mGroup,
+          baseUnit: mBaseUnit,
+          quantityUsed: 0,
+          totalCost: 0,
+          avgCost: unitCost,
+          orderUsage: 0,
+          produceUsage: 0,
+          stockCheckUsage: 0,
+        };
+
+        existing.quantityUsed += qty;
+        existing.totalCost += cost;
+        existing.stockCheckUsage = (existing.stockCheckUsage || 0) + qty;
         if (existing.avgCost === 0 && unitCost > 0) existing.avgCost = unitCost;
         materialUsageMap.set(mId, existing);
       }
@@ -334,12 +380,13 @@ export async function GET(request: NextRequest) {
         'Tên nguyên liệu',
         'Nhóm',
         'Đơn vị tính',
-        'Số lượng đã dùng',
+        'Tổng số lượng đã dùng',
         'Đơn giá vốn bình quân (đ)',
         'Tổng chi phí tiêu hao (đ)',
         'Tỷ trọng chi phí (%)',
-        'Làm đơn hàng',
-        'Bó sẵn tiệm',
+        'Từ đơn hàng',
+        'Từ bó sẵn tiệm',
+        'Từ kiểm kho / hao hụt',
       ];
 
       const rows: string[] = [];
@@ -359,6 +406,7 @@ export async function GET(request: NextRequest) {
           share + '%',
           m.orderUsage,
           m.produceUsage,
+          m.stockCheckUsage,
         ];
         rows.push(row.map(escapeCsvCell).join(','));
       });

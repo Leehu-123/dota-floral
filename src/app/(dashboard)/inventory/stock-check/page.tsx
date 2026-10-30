@@ -17,6 +17,8 @@ import {
   ChevronRight,
   Layers,
   Calculator,
+  History,
+  Plus,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { formatQty } from '@/lib/format';
+import { formatQty, formatVND } from '@/lib/format';
 import { MATERIAL_GROUPS, getLabel } from '@/lib/constants';
 import { toast } from 'sonner';
 
@@ -166,8 +168,19 @@ export default function StockCheckPage() {
     }
   };
 
-  // Calculate differences
-  const adjustments = useMemo(() => {
+  const [createdTicket, setCreatedTicket] = useState<{
+    id: string;
+    code: string;
+    note: string | null;
+    totalItems: number;
+    increaseCount: number;
+    decreaseCount: number;
+    matchCount: number;
+    totalDiffCost: number;
+  } | null>(null);
+
+  // Danh sách các nguyên vật liệu đã được người dùng nhập số lượng thực tế
+  const checkedItems = useMemo(() => {
     const list: Array<{
       material: Material;
       currentStock: number;
@@ -180,16 +193,14 @@ export default function StockCheckPage() {
       const valStr = actualCounts[m.id];
       if (valStr !== undefined && valStr.trim() !== '') {
         const actualQty = parseFloat(valStr);
-        if (!isNaN(actualQty)) {
-          const diff = actualQty - currentStock;
-          if (Math.abs(diff) > 0.0001) {
-            list.push({
-              material: m,
-              currentStock,
-              actualQty,
-              diff,
-            });
-          }
+        if (!isNaN(actualQty) && actualQty >= 0) {
+          const diff = Math.round((actualQty - currentStock) * 10000) / 10000;
+          list.push({
+            material: m,
+            currentStock,
+            actualQty,
+            diff,
+          });
         }
       }
     });
@@ -197,24 +208,38 @@ export default function StockCheckPage() {
     return list;
   }, [materials, actualCounts]);
 
+  // Backward compatibility alias for list with non-zero diff
+  const adjustments = useMemo(() => {
+    return checkedItems.filter((i) => Math.abs(i.diff) > 0.0001);
+  }, [checkedItems]);
+
   const summary = useMemo(() => {
     let increaseCount = 0;
     let decreaseCount = 0;
+    let matchCount = 0;
+    let totalDiffCost = 0;
 
-    adjustments.forEach((item) => {
-      if (item.diff > 0) {
+    checkedItems.forEach((item) => {
+      const unitCost = Number(item.material.avgCost) || 0;
+      totalDiffCost += item.diff * unitCost;
+      if (item.diff > 0.0001) {
         increaseCount++;
-      } else if (item.diff < 0) {
+      } else if (item.diff < -0.0001) {
         decreaseCount++;
+      } else {
+        matchCount++;
       }
     });
 
     return {
+      totalChecked: checkedItems.length,
       totalAdjusted: adjustments.length,
       increaseCount,
       decreaseCount,
+      matchCount,
+      totalDiffCost: Math.round(totalDiffCost),
     };
-  }, [adjustments]);
+  }, [checkedItems, adjustments]);
 
   // Filtered materials for listing
   const filteredMaterials = useMemo(() => {
@@ -246,15 +271,15 @@ export default function StockCheckPage() {
   }, [materials, selectedGroup, search, onlyDiffs, actualCounts]);
 
   const handleSave = async () => {
-    if (adjustments.length === 0) {
-      toast.info('Không có mục nào thay đổi số lượng để cập nhật');
+    if (checkedItems.length === 0) {
+      toast.info('Vui lòng nhập số lượng thực tế cho ít nhất 1 nguyên vật liệu');
       return;
     }
 
     // Validate no negative quantities
-    for (const adj of adjustments) {
-      if (adj.actualQty < 0) {
-        toast.error(`Số lượng thực tế của "${adj.material.name}" không được âm`);
+    for (const item of checkedItems) {
+      if (item.actualQty < 0) {
+        toast.error(`Số lượng thực tế của "${item.material.name}" không được âm`);
         return;
       }
     }
@@ -262,9 +287,9 @@ export default function StockCheckPage() {
     try {
       setSubmitting(true);
       const payload = {
-        items: adjustments.map((adj) => ({
-          materialId: adj.material.id,
-          actualQty: adj.actualQty,
+        items: checkedItems.map((item) => ({
+          materialId: item.material.id,
+          actualQty: item.actualQty,
         })),
         note: note.trim() || undefined,
       };
@@ -281,8 +306,26 @@ export default function StockCheckPage() {
         throw new Error(data.error || 'Lỗi khi lưu kết quả kiểm kho');
       }
 
-      toast.success(data.message || 'Đã lưu kết quả kiểm kho thành công');
-      router.push('/inventory');
+      toast.success(data.message || 'Đã lưu phiếu kiểm kho thành công');
+
+      // Update local materials state with newly verified actual stock
+      const updatedMap = new Map<string, number>(
+        checkedItems.map((ci) => [ci.material.id, ci.actualQty])
+      );
+      setMaterials((prev) =>
+        prev.map((m) =>
+          updatedMap.has(m.id)
+            ? { ...m, currentStock: updatedMap.get(m.id)! }
+            : m
+        )
+      );
+
+      // Open success modal
+      if (data.stockCheck) {
+        setCreatedTicket(data.stockCheck);
+      } else {
+        router.push('/inventory/stock-checks');
+      }
     } catch (err: any) {
       console.error(err);
       toast.error(err.message || 'Không thể lưu kiểm kho');
@@ -294,7 +337,7 @@ export default function StockCheckPage() {
   return (
     <div className="space-y-4 pb-32">
       {/* Top Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <button
           type="button"
           onClick={() => router.back()}
@@ -303,17 +346,61 @@ export default function StockCheckPage() {
           <ArrowLeft className="w-5 h-5 text-gray-500" />
           <span>Kho</span>
         </button>
+
+        <Button
+          variant="outline"
+          size="sm"
+          asChild
+          className="rounded-xl border-purple-200 text-purple-900 hover:bg-purple-50 text-xs gap-1.5 h-9 font-semibold"
+        >
+          <Link href="/inventory/stock-checks">
+            <History className="w-4 h-4 text-purple-600" />
+            <span>Danh sách phiếu kiểm</span>
+          </Link>
+        </Button>
       </div>
 
       <div>
         <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
           <PackageCheck className="w-6 h-6 text-purple-600" />
-          Kiểm kho định kỳ
+          Kiểm kho nguyên vật liệu
         </h1>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Nhập số lượng thực tế tại tiệm để cân bằng tồn kho hệ thống
+          Nhập số lượng thực tế tại tiệm theo từng đợt (10-20 NVL) để tạo phiếu kiểm kê và lưu lại
         </p>
       </div>
+
+      {/* Ghi chú đợt kiểm kho & Tên phiếu */}
+      <Card className="rounded-2xl border-purple-100 shadow-xs bg-white">
+        <CardContent className="p-3.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="note" className="text-xs font-bold text-gray-800">
+              Ghi chú đợt kiểm kho này
+            </Label>
+            <span className="text-[10px] text-gray-400">Tùy chọn</span>
+          </div>
+          <Input
+            id="note"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="Ví dụ: Kiểm kho sau đợt 20/10 - Đợt hoa sáp, 15 mặt hàng..."
+            className="rounded-xl text-xs h-9 bg-gray-50/60"
+          />
+          <div className="flex items-center gap-1.5 flex-wrap pt-0.5">
+            <span className="text-[10px] text-gray-400">Gợi ý nhanh:</span>
+            {['Kiểm kho sau đợt 20/10', 'Đợt 1: Giấy nơ phụ liệu', 'Đợt 2: Hoa sáp', 'Đợt 3: Hoa cành & giỏ'].map((sug) => (
+              <button
+                key={sug}
+                type="button"
+                onClick={() => setNote(sug)}
+                className="text-[10px] bg-purple-50 text-purple-800 hover:bg-purple-100 px-2.5 py-0.5 rounded-full font-medium transition-colors"
+              >
+                {sug}
+              </button>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Banner cân đối sau đợt bán lớn (nếu có phát sinh) */}
       <Link href="/inventory/reconciliation">
@@ -780,31 +867,19 @@ export default function StockCheckPage() {
         )}
       </div>
 
-      {/* Note for stock check */}
-      <Card className="rounded-2xl border-gray-100 shadow-sm">
-        <CardContent className="p-4 space-y-1.5">
-          <Label htmlFor="note" className="text-sm font-medium text-gray-700">
-            Ghi chú đợt kiểm kho
-          </Label>
-          <Textarea
-            id="note"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="VD: Kiểm kê định kỳ đầu tuần, phát hiện hao hụt hoa sáp..."
-            rows={2}
-            className="rounded-xl resize-none text-sm"
-          />
-        </CardContent>
-      </Card>
-
       {/* Bottom Sticky Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-3 pb-4 md:pb-3 safe-area-bottom z-40 shadow-lg">
         <div className="max-w-7xl mx-auto px-4 md:px-8 flex items-center justify-between gap-3">
           <div className="text-xs">
-            <span className="text-muted-foreground">Điều chỉnh: </span>
-            <span className="font-bold text-gray-900">
-              {summary.totalAdjusted} vật tư
+            <span className="text-muted-foreground">Đã kiểm đợt này: </span>
+            <span className="font-bold text-purple-950">
+              {summary.totalChecked} NVL
             </span>
+            {summary.totalAdjusted > 0 && (
+              <span className="text-rose-600 font-semibold ml-1.5 hidden sm:inline">
+                ({summary.totalAdjusted} lệch)
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-2">
@@ -819,16 +894,102 @@ export default function StockCheckPage() {
             </Button>
             <Button
               type="button"
-              className="h-11 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-semibold gap-1.5 shadow-sm px-5"
+              className="h-11 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold gap-1.5 shadow-sm px-5"
               onClick={handleSave}
-              disabled={submitting || summary.totalAdjusted === 0}
+              disabled={submitting || summary.totalChecked === 0}
             >
               <Save className="w-4 h-4" />
-              {submitting ? 'Đang lưu...' : 'Lưu kiểm kho'}
+              {submitting ? 'Đang lưu phiếu...' : `Lưu phiếu kiểm (${summary.totalChecked})`}
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Success Modal after saving ticket */}
+      {createdTicket && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <Card className="w-full max-w-md rounded-3xl border-purple-200 bg-white shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center space-y-4">
+              <div className="w-14 h-14 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
+                <CheckCircle2 className="w-8 h-8" />
+              </div>
+
+              <div>
+                <span className="inline-block px-3 py-1 rounded-full text-xs font-black bg-purple-100 text-purple-900 mb-2">
+                  {createdTicket.code}
+                </span>
+                <h3 className="text-lg font-black text-gray-900">
+                  Lưu phiếu kiểm kho thành công!
+                </h3>
+                <p className="text-xs text-gray-500 mt-1">
+                  {createdTicket.note || 'Đã cập nhật tồn kho hệ thống khớp thực tế'}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 p-3.5 bg-purple-50/60 rounded-2xl border border-purple-100 text-left text-xs">
+                <div>
+                  <span className="text-[10px] text-gray-500 block">Đã kiểm kê</span>
+                  <span className="font-extrabold text-sm text-gray-900">
+                    {createdTicket.totalItems} NVL
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-500 block">Lệch giảm (thiếu)</span>
+                  <span className="font-extrabold text-sm text-rose-600">
+                    {createdTicket.decreaseCount} NVL
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-500 block">Lệch tăng (thừa)</span>
+                  <span className="font-bold text-xs text-emerald-600">
+                    {createdTicket.increaseCount} NVL
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-gray-400 block">Chênh lệch giá trị</span>
+                  <span className={`font-black text-xs ${createdTicket.totalDiffCost < 0 ? 'text-rose-600' : 'text-gray-900'}`}>
+                    {createdTicket.totalDiffCost > 0 ? '+' : ''}{formatVND(createdTicket.totalDiffCost)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <Button
+                  className="w-full h-11 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs gap-1.5 shadow-sm"
+                  onClick={() => {
+                    setActualCounts({});
+                    setPackCounts({});
+                    setLooseCounts({});
+                    setCreatedTicket(null);
+                    setNote('');
+                    toast.success('Đã sẵn sàng kiểm đợt tiếp theo!');
+                  }}
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Tiếp tục kiểm đợt tiếp theo (10-20 NVL khác)</span>
+                </Button>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    variant="outline"
+                    className="w-full h-10 rounded-xl border-purple-200 text-purple-950 font-semibold text-xs"
+                    onClick={() => router.push('/inventory/stock-checks')}
+                  >
+                    <span>Xem danh sách phiếu</span>
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    className="w-full h-10 rounded-xl text-gray-600 hover:bg-gray-100 font-semibold text-xs"
+                    onClick={() => router.push('/inventory')}
+                  >
+                    <span>Về Quản lý kho</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

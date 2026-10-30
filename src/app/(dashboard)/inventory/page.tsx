@@ -17,6 +17,7 @@ import {
   ChevronRight,
   TrendingUp,
   FileText,
+  History,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -265,7 +266,7 @@ export default function InventoryPage() {
       {activeTab === 'materials' && (
         <div className="space-y-4">
           {/* Quick Action Buttons for Materials at the TOP */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2">
             <Button
               size="sm"
               className="w-full rounded-xl h-11 bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-xs active:scale-[0.98] text-xs gap-1.5"
@@ -273,7 +274,7 @@ export default function InventoryPage() {
             >
               <Link href="/inventory/materials/new">
                 <Plus className="w-4 h-4 shrink-0" />
-                <span>Thêm nguyên liệu</span>
+                <span>Thêm NVL</span>
               </Link>
             </Button>
             <Button
@@ -293,6 +294,17 @@ export default function InventoryPage() {
               className="w-full rounded-xl h-11 border-purple-200 bg-white hover:bg-purple-50 text-purple-950 font-bold shadow-xs active:scale-[0.98] text-xs gap-1.5"
               asChild
             >
+              <Link href="/inventory/stock-checks">
+                <History className="w-4 h-4 text-purple-700 shrink-0" />
+                <span>Phiếu kiểm kho</span>
+              </Link>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full rounded-xl h-11 border-purple-200 bg-white hover:bg-purple-50 text-purple-950 font-bold shadow-xs active:scale-[0.98] text-xs gap-1.5"
+              asChild
+            >
               <Link href="/purchases/new">
                 <Download className="w-4 h-4 text-purple-700 shrink-0" />
                 <span>Tạo phiếu nhập</span>
@@ -301,7 +313,7 @@ export default function InventoryPage() {
             <Button
               variant="outline"
               size="sm"
-              className="w-full rounded-xl h-11 border-purple-200 bg-white hover:bg-purple-50 text-purple-950 font-bold shadow-xs active:scale-[0.98] text-xs gap-1.5"
+              className="w-full rounded-xl h-11 border-purple-200 bg-white hover:bg-purple-50 text-purple-950 font-bold shadow-xs active:scale-[0.98] text-xs gap-1.5 col-span-2 sm:col-span-1"
               asChild
             >
               <Link href="/purchases">

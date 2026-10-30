@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import Link from 'next/link';
 import {
   Download,
   Calendar,
@@ -40,6 +41,10 @@ interface SummaryData {
   purchaseCost: number;
   totalMaterialCost?: number;
   materialItemsCount?: number;
+  totalStockCheckCost?: number;
+  totalOrderCost?: number;
+  totalProduceCost?: number;
+  stockChecksCount?: number;
 }
 
 interface ChannelStat {
@@ -70,7 +75,21 @@ interface MaterialUsedItem {
   totalCost: number;
   orderUsage: number;
   produceUsage: number;
+  stockCheckUsage?: number;
   costShare: number;
+}
+
+interface StockCheckSummaryItem {
+  id: string;
+  code: string;
+  checkDate: string;
+  note: string | null;
+  totalItems: number;
+  increaseCount: number;
+  decreaseCount: number;
+  matchCount: number;
+  totalDiffCost: number;
+  _count?: { items: number };
 }
 
 interface ReconciliationBatch {
@@ -99,6 +118,7 @@ interface ReportResponse {
   topProducts: TopProduct[];
   materialsUsed?: MaterialUsedItem[];
   reconciliationBatches?: ReconciliationBatch[];
+  stockChecks?: StockCheckSummaryItem[];
 }
 
 type PresetKey = 'today' | '7days' | 'month' | 'prevMonth' | 'custom';
@@ -611,7 +631,7 @@ export default function ReportsPage() {
 
         <CardContent className="p-4 space-y-3.5">
           {/* Quick Summary Row */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 p-3 bg-purple-50/50 rounded-xl border border-purple-100 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-purple-50/50 rounded-xl border border-purple-100 text-xs">
             <div>
               <span className="text-[10px] text-purple-700 font-semibold uppercase block">
                 Tổng chi phí NVL
@@ -628,12 +648,20 @@ export default function ReportsPage() {
                 {data?.materialsUsed?.length || 0} loại
               </span>
             </div>
-            <div className="col-span-2 sm:col-span-1">
+            <div>
               <span className="text-[10px] text-purple-700 font-semibold uppercase block">
-                Phục vụ
+                Từ đơn hàng & bó sẵn
               </span>
               <span className="font-bold text-sm text-emerald-700 block mt-0.5">
-                {data?.summary.orderCount || 0} đơn hàng
+                {formatVND((data?.summary.totalOrderCost || 0) + (data?.summary.totalProduceCost || 0))}
+              </span>
+            </div>
+            <div>
+              <span className="text-[10px] text-purple-700 font-semibold uppercase block">
+                Từ kiểm kho / hao hụt
+              </span>
+              <span className="font-bold text-sm text-amber-700 block mt-0.5">
+                {formatVND(data?.summary.totalStockCheckCost || 0)}
               </span>
             </div>
           </div>
@@ -729,12 +757,17 @@ export default function ReportsPage() {
                         </span>
                         <span>•</span>
                         <span>Đơn giá vốn: {formatVND(m.avgCost)}/{m.baseUnit}</span>
-                        {(m.orderUsage > 0 || m.produceUsage > 0) && (
+                        {(m.orderUsage > 0 || m.produceUsage > 0 || ((m.stockCheckUsage || 0) > 0)) && (
                           <>
                             <span>•</span>
-                            <span className="text-[10px] text-gray-400">
-                              (Đơn hàng: {formatQty(m.orderUsage)}
-                              {m.produceUsage > 0 ? ` + Bó sẵn: ${formatQty(m.produceUsage)}` : ''})
+                            <span className="text-[10px] text-gray-500">
+                              (
+                              {[
+                                m.orderUsage > 0 ? `Đơn: ${formatQty(m.orderUsage)}` : null,
+                                m.produceUsage > 0 ? `Bó sẵn: ${formatQty(m.produceUsage)}` : null,
+                                (m.stockCheckUsage || 0) > 0 ? `Kiểm kho: ${formatQty(m.stockCheckUsage!)}` : null,
+                              ].filter(Boolean).join(' • ')}
+                              )
                             </span>
                           </>
                         )}
@@ -834,6 +867,75 @@ export default function ReportsPage() {
                       ))}
                     </div>
                   )}
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* 8. Card 5: Phiếu kiểm kho trong đợt */}
+      {data?.stockChecks && data.stockChecks.length > 0 && (
+        <Card className="rounded-2xl border-purple-200/80 shadow-xs overflow-hidden bg-white">
+          <CardHeader className="p-4 pb-2 border-b border-purple-100 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                <PackageCheck className="w-4 h-4 text-purple-600" />
+                <span>Phiếu kiểm kho trong đợt ({data.stockChecks.length} phiếu)</span>
+              </CardTitle>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Lịch sử kiểm kê vật tư đã được lưu lại trong khoảng thời gian này
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              asChild
+              className="rounded-xl border-purple-200 text-purple-900 hover:bg-purple-100 font-semibold text-xs h-8"
+            >
+              <Link href="/inventory/stock-checks">
+                <span>Tất cả phiếu kiểm</span>
+              </Link>
+            </Button>
+          </CardHeader>
+
+          <CardContent className="p-4 pt-3 space-y-2.5">
+            {data.stockChecks.map((sc) => {
+              const diffCost = Number(sc.totalDiffCost) || 0;
+              return (
+                <div
+                  key={sc.id}
+                  className="rounded-xl border border-gray-100 bg-gray-50/60 p-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 hover:border-purple-200 transition-colors"
+                >
+                  <div className="space-y-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-bold text-xs text-purple-900">{sc.code}</span>
+                      <Badge variant="outline" className="text-[10px] bg-white">
+                        {formatDate(sc.checkDate)}
+                      </Badge>
+                      {sc.note && (
+                        <span className="text-[11px] text-gray-600 italic">
+                          - {sc.note}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-[11px] text-gray-500 flex items-center gap-2 flex-wrap">
+                      <span>Đã kiểm: <strong className="text-gray-800">{sc.totalItems}</strong> NVL</span>
+                      <span>•</span>
+                      <span className="text-rose-600">Thiếu: {sc.decreaseCount}</span>
+                      <span>•</span>
+                      <span className="text-emerald-600">Thừa: {sc.increaseCount}</span>
+                      <span>•</span>
+                      <span className="text-gray-600">Khớp: {sc.matchCount}</span>
+                    </div>
+                  </div>
+
+                  <div className="text-left sm:text-right shrink-0">
+                    <span className="text-[10px] text-gray-400 block">Chênh lệch giá trị</span>
+                    <span className={`font-extrabold text-xs block ${diffCost < 0 ? 'text-rose-600' : diffCost > 0 ? 'text-emerald-600' : 'text-gray-800'}`}>
+                      {diffCost > 0 ? '+' : ''}{formatVND(diffCost)}
+                    </span>
+                  </div>
                 </div>
               );
             })}

@@ -212,7 +212,7 @@ export async function GET(request: NextRequest) {
         grossProfit: Math.round(p.profit), // Backwards compatibility alias
       }));
 
-    // 6. Báo cáo nguyên vật liệu đã sử dụng trong đợt (từ đơn hàng + bó sẵn)
+    // 6. Báo cáo nguyên vật liệu đã sử dụng trong đợt (từ đơn hàng + bó sẵn + kiểm kho)
     const materialUsageMap = new Map<
       string,
       {
@@ -225,6 +225,7 @@ export async function GET(request: NextRequest) {
         avgCost: number;
         orderUsage: number;
         produceUsage: number;
+        stockCheckUsage: number;
       }
     >();
 
@@ -251,6 +252,7 @@ export async function GET(request: NextRequest) {
             avgCost: unitCost,
             orderUsage: 0,
             produceUsage: 0,
+            stockCheckUsage: 0,
           };
 
           existing.quantityUsed += qty;
@@ -295,6 +297,7 @@ export async function GET(request: NextRequest) {
         avgCost: unitCost,
         orderUsage: 0,
         produceUsage: 0,
+        stockCheckUsage: 0,
       };
 
       existing.quantityUsed += qty;
@@ -304,10 +307,64 @@ export async function GET(request: NextRequest) {
       materialUsageMap.set(mId, existing);
     }
 
+    // 6c. Từ các đợt kiểm kho / hao hụt vật tư trong đợt (StockMovement refType 'stock_check' có quantity < 0)
+    const stockCheckMovements = await prisma.stockMovement.findMany({
+      where: {
+        createdAt: {
+          gte: fromDate,
+          lte: toDate,
+        },
+        refType: 'stock_check',
+        quantity: { lt: 0 },
+      },
+      include: {
+        material: true,
+      },
+    });
+
+    for (const scm of stockCheckMovements) {
+      const mId = scm.materialId;
+      const mName = scm.material?.name || 'Vật tư';
+      const mGroup = scm.material?.group || 'khac';
+      const mBaseUnit = scm.material?.baseUnit || '';
+      const qty = Math.abs(Number(scm.quantity)) || 0;
+      const unitCost = Number(scm.unitCost) || Number(scm.material?.avgCost) || 0;
+      const cost = qty * unitCost;
+
+      const existing = materialUsageMap.get(mId) || {
+        materialId: mId,
+        name: mName,
+        group: mGroup,
+        baseUnit: mBaseUnit,
+        quantityUsed: 0,
+        totalCost: 0,
+        avgCost: unitCost,
+        orderUsage: 0,
+        produceUsage: 0,
+        stockCheckUsage: 0,
+      };
+
+      existing.quantityUsed += qty;
+      existing.totalCost += cost;
+      existing.stockCheckUsage = (existing.stockCheckUsage || 0) + qty;
+      if (existing.avgCost === 0 && unitCost > 0) existing.avgCost = unitCost;
+      materialUsageMap.set(mId, existing);
+    }
+
     const totalMaterialCost = Array.from(materialUsageMap.values()).reduce(
       (sum, m) => sum + m.totalCost,
       0
     );
+
+    let totalStockCheckCost = 0;
+    let totalOrderCost = 0;
+    let totalProduceCost = 0;
+    for (const m of materialUsageMap.values()) {
+      const avg = m.quantityUsed > 0 ? m.totalCost / m.quantityUsed : m.avgCost;
+      totalStockCheckCost += (m.stockCheckUsage || 0) * avg;
+      totalOrderCost += (m.orderUsage || 0) * avg;
+      totalProduceCost += (m.produceUsage || 0) * avg;
+    }
 
     const materialsUsed = Array.from(materialUsageMap.values())
       .map((m) => {
@@ -322,10 +379,27 @@ export async function GET(request: NextRequest) {
           totalCost: Math.round(m.totalCost),
           orderUsage: Math.round(m.orderUsage * 100) / 100,
           produceUsage: Math.round(m.produceUsage * 100) / 100,
+          stockCheckUsage: Math.round(m.stockCheckUsage * 100) / 100,
           costShare: totalMaterialCost > 0 ? Number(((m.totalCost / totalMaterialCost) * 100).toFixed(1)) : 0,
         };
       })
       .sort((a, b) => b.totalCost - a.totalCost || b.quantityUsed - a.quantityUsed);
+
+    // 7. Lấy danh sách phiếu kiểm kho trong đợt
+    const stockChecksInPeriod = await prisma.stockCheck.findMany({
+      where: {
+        checkDate: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      orderBy: { checkDate: 'desc' },
+      include: {
+        _count: {
+          select: { items: true },
+        },
+      },
+    });
 
     // 7. Lấy danh sách các đợt cân đối kho (nếu có tạo phiếu Cân đối kho)
     const reconciliationPurchases = await prisma.purchase.findMany({
@@ -399,12 +473,17 @@ export async function GET(request: NextRequest) {
         purchasesCount,
         totalMaterialCost: Math.round(totalMaterialCost),
         materialItemsCount: materialsUsed.length,
+        totalStockCheckCost: Math.round(totalStockCheckCost),
+        totalOrderCost: Math.round(totalOrderCost),
+        totalProduceCost: Math.round(totalProduceCost),
+        stockChecksCount: stockChecksInPeriod.length,
       },
       byChannel,
       channels: byChannel, // Backwards compatibility alias
       topProducts,
       materialsUsed,
       reconciliationBatches,
+      stockChecks: stockChecksInPeriod,
     });
   } catch (error) {
     console.error('Lỗi khi lập báo cáo:', error);

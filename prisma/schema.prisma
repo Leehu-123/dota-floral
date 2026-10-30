@@ -48,6 +48,7 @@ model Material {
   stockMovements     StockMovement[]
   productMaterials   ProductMaterial[]
   orderLineMaterials OrderLineMaterial[]
+  stockCheckItems    StockCheckItem[]
 
   @@map("materials")
 }
@@ -112,6 +113,44 @@ model StockMovement {
   @@index([materialId])
   @@index([refType, refId])
   @@map("stock_movements")
+}
+
+model StockCheck {
+  id            String           @id @default(cuid())
+  code          String           @unique
+  checkDate     DateTime         @default(now()) @map("check_date")
+  note          String?
+  totalItems    Int              @default(0) @map("total_items")
+  increaseCount Int              @default(0) @map("increase_count")
+  decreaseCount Int              @default(0) @map("decrease_count")
+  matchCount    Int              @default(0) @map("match_count")
+  totalDiffCost Decimal          @default(0) @map("total_diff_cost") @db.Decimal(12, 0)
+  status        String           @default("completed")
+  createdAt     DateTime         @default(now()) @map("created_at")
+  updatedAt     DateTime         @updatedAt @map("updated_at")
+
+  items         StockCheckItem[]
+
+  @@index([checkDate])
+  @@map("stock_checks")
+}
+
+model StockCheckItem {
+  id            String     @id @default(cuid())
+  stockCheckId  String     @map("stock_check_id")
+  stockCheck    StockCheck @relation(fields: [stockCheckId], references: [id], onDelete: Cascade)
+  materialId    String     @map("material_id")
+  material      Material   @relation(fields: [materialId], references: [id])
+  previousStock Decimal    @map("previous_stock") @db.Decimal(12, 4)
+  actualStock   Decimal    @map("actual_stock") @db.Decimal(12, 4)
+  difference    Decimal    @db.Decimal(12, 4)
+  unitCost      Decimal    @map("unit_cost") @db.Decimal(12, 2) @default(0)
+  totalCostDiff Decimal    @map("total_cost_diff") @db.Decimal(12, 0) @default(0)
+  note          String?
+
+  @@index([stockCheckId])
+  @@index([materialId])
+  @@map("stock_check_items")
 }
 
 model Product {
