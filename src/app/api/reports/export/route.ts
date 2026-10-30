@@ -209,8 +209,174 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    if (type === 'materials') {
+      // Lấy danh sách nguyên vật liệu đã dùng từ đơn hàng
+      const orders = await prisma.order.findMany({
+        where: {
+          isDeleted: false,
+          status: { not: 'cancelled' },
+          orderDate: {
+            gte: fromDate,
+            lte: toDate,
+          },
+        },
+        include: {
+          lines: {
+            include: {
+              materials: {
+                include: {
+                  material: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      const materialUsageMap = new Map<
+        string,
+        {
+          name: string;
+          group: string;
+          baseUnit: string;
+          quantityUsed: number;
+          totalCost: number;
+          avgCost: number;
+          orderUsage: number;
+          produceUsage: number;
+        }
+      >();
+
+      for (const o of orders) {
+        for (const line of o.lines) {
+          const lineQty = Number(line.quantity) || 1;
+          for (const olm of (line as any).materials || []) {
+            const mId = olm.materialId;
+            const mName = olm.material?.name || 'Vật tư';
+            const mGroup = olm.material?.group || 'khac';
+            const mBaseUnit = olm.material?.baseUnit || '';
+            const qty = (Number(olm.quantity) || 0) * lineQty;
+            const unitCost = Number(olm.unitCost) || Number(olm.material?.avgCost) || 0;
+            const cost = qty * unitCost;
+
+            const existing = materialUsageMap.get(mId) || {
+              name: mName,
+              group: mGroup,
+              baseUnit: mBaseUnit,
+              quantityUsed: 0,
+              totalCost: 0,
+              avgCost: unitCost,
+              orderUsage: 0,
+              produceUsage: 0,
+            };
+
+            existing.quantityUsed += qty;
+            existing.totalCost += cost;
+            existing.orderUsage += qty;
+            if (existing.avgCost === 0 && unitCost > 0) existing.avgCost = unitCost;
+            materialUsageMap.set(mId, existing);
+          }
+        }
+      }
+
+      // Lấy thêm từ produce_out
+      const produceMovements = await prisma.stockMovement.findMany({
+        where: {
+          createdAt: {
+            gte: fromDate,
+            lte: toDate,
+          },
+          type: 'produce_out',
+        },
+        include: {
+          material: true,
+        },
+      });
+
+      for (const pm of produceMovements) {
+        const mId = pm.materialId;
+        const mName = pm.material?.name || 'Vật tư';
+        const mGroup = pm.material?.group || 'khac';
+        const mBaseUnit = pm.material?.baseUnit || '';
+        const qty = Math.abs(Number(pm.quantity)) || 0;
+        const unitCost = Number(pm.unitCost) || Number(pm.material?.avgCost) || 0;
+        const cost = qty * unitCost;
+
+        const existing = materialUsageMap.get(mId) || {
+          name: mName,
+          group: mGroup,
+          baseUnit: mBaseUnit,
+          quantityUsed: 0,
+          totalCost: 0,
+          avgCost: unitCost,
+          orderUsage: 0,
+          produceUsage: 0,
+        };
+
+        existing.quantityUsed += qty;
+        existing.totalCost += cost;
+        existing.produceUsage += qty;
+        if (existing.avgCost === 0 && unitCost > 0) existing.avgCost = unitCost;
+        materialUsageMap.set(mId, existing);
+      }
+
+      const totalMaterialCost = Array.from(materialUsageMap.values()).reduce(
+        (sum, m) => sum + m.totalCost,
+        0
+      );
+
+      const sortedMaterials = Array.from(materialUsageMap.values()).sort(
+        (a, b) => b.totalCost - a.totalCost || b.quantityUsed - a.quantityUsed
+      );
+
+      const headers = [
+        'STT',
+        'Tên nguyên liệu',
+        'Nhóm',
+        'Đơn vị tính',
+        'Số lượng đã dùng',
+        'Đơn giá vốn bình quân (đ)',
+        'Tổng chi phí tiêu hao (đ)',
+        'Tỷ trọng chi phí (%)',
+        'Làm đơn hàng',
+        'Bó sẵn tiệm',
+      ];
+
+      const rows: string[] = [];
+      rows.push(headers.map(escapeCsvCell).join(','));
+
+      sortedMaterials.forEach((m, idx) => {
+        const avgCost = m.quantityUsed > 0 ? Math.round(m.totalCost / m.quantityUsed) : m.avgCost;
+        const share = totalMaterialCost > 0 ? Number(((m.totalCost / totalMaterialCost) * 100).toFixed(1)) : 0;
+        const row = [
+          idx + 1,
+          m.name,
+          m.group,
+          m.baseUnit,
+          m.quantityUsed,
+          avgCost,
+          Math.round(m.totalCost),
+          share + '%',
+          m.orderUsage,
+          m.produceUsage,
+        ];
+        rows.push(row.map(escapeCsvCell).join(','));
+      });
+
+      const csvContent = '\uFEFF' + rows.join('\r\n');
+
+      return new Response(csvContent, {
+        status: 200,
+        headers: {
+          'Content-Type': 'text/csv; charset=utf-8',
+          'Content-Disposition': 'attachment; filename="dota-floral-nguyen-lieu-da-dung.csv"',
+          'Cache-Control': 'no-store',
+        },
+      });
+    }
+
     return NextResponse.json(
-      { error: "Loại báo cáo không hợp lệ. Vui lòng chọn 'orders' hoặc 'purchases'." },
+      { error: "Loại báo cáo không hợp lệ. Vui lòng chọn 'orders', 'purchases' hoặc 'materials'." },
       { status: 400 }
     );
   } catch (error) {

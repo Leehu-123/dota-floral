@@ -28,7 +28,7 @@ export async function GET(request: NextRequest) {
     const fromDate = new Date(fromStr.includes('T') ? fromStr : `${fromStr}T00:00:00.000Z`);
     const toDate = new Date(toStr.includes('T') ? toStr : `${toStr}T23:59:59.999Z`);
 
-    // 1. Lấy danh sách đơn hàng hợp lệ trong khoảng ngày
+    // 1. Lấy danh sách đơn hàng hợp lệ trong khoảng ngày (kèm chi tiết nguyên vật liệu của từng dòng)
     const orders = await prisma.order.findMany({
       where: {
         isDeleted: false,
@@ -39,7 +39,15 @@ export async function GET(request: NextRequest) {
         },
       },
       include: {
-        lines: true,
+        lines: {
+          include: {
+            materials: {
+              include: {
+                material: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { orderDate: 'desc' },
     });
@@ -204,6 +212,169 @@ export async function GET(request: NextRequest) {
         grossProfit: Math.round(p.profit), // Backwards compatibility alias
       }));
 
+    // 6. Báo cáo nguyên vật liệu đã sử dụng trong đợt (từ đơn hàng + bó sẵn)
+    const materialUsageMap = new Map<
+      string,
+      {
+        materialId: string;
+        name: string;
+        group: string;
+        baseUnit: string;
+        quantityUsed: number;
+        totalCost: number;
+        avgCost: number;
+        orderUsage: number;
+        produceUsage: number;
+      }
+    >();
+
+    // 6a. Từ các đơn hàng bán ra trong đợt
+    for (const o of orders) {
+      for (const line of o.lines) {
+        const lineQty = Number(line.quantity) || 1;
+        for (const olm of (line as any).materials || []) {
+          const mId = olm.materialId;
+          const mName = olm.material?.name || 'Vật tư';
+          const mGroup = olm.material?.group || 'khac';
+          const mBaseUnit = olm.material?.baseUnit || '';
+          const qty = (Number(olm.quantity) || 0) * lineQty;
+          const unitCost = Number(olm.unitCost) || Number(olm.material?.avgCost) || 0;
+          const cost = qty * unitCost;
+
+          const existing = materialUsageMap.get(mId) || {
+            materialId: mId,
+            name: mName,
+            group: mGroup,
+            baseUnit: mBaseUnit,
+            quantityUsed: 0,
+            totalCost: 0,
+            avgCost: unitCost,
+            orderUsage: 0,
+            produceUsage: 0,
+          };
+
+          existing.quantityUsed += qty;
+          existing.totalCost += cost;
+          existing.orderUsage += qty;
+          if (existing.avgCost === 0 && unitCost > 0) existing.avgCost = unitCost;
+          materialUsageMap.set(mId, existing);
+        }
+      }
+    }
+
+    // 6b. Từ các bó hoa làm sẵn vào kho trong đợt (StockMovement type 'produce_out')
+    const produceMovements = await prisma.stockMovement.findMany({
+      where: {
+        createdAt: {
+          gte: fromDate,
+          lte: toDate,
+        },
+        type: 'produce_out',
+      },
+      include: {
+        material: true,
+      },
+    });
+
+    for (const pm of produceMovements) {
+      const mId = pm.materialId;
+      const mName = pm.material?.name || 'Vật tư';
+      const mGroup = pm.material?.group || 'khac';
+      const mBaseUnit = pm.material?.baseUnit || '';
+      const qty = Math.abs(Number(pm.quantity)) || 0;
+      const unitCost = Number(pm.unitCost) || Number(pm.material?.avgCost) || 0;
+      const cost = qty * unitCost;
+
+      const existing = materialUsageMap.get(mId) || {
+        materialId: mId,
+        name: mName,
+        group: mGroup,
+        baseUnit: mBaseUnit,
+        quantityUsed: 0,
+        totalCost: 0,
+        avgCost: unitCost,
+        orderUsage: 0,
+        produceUsage: 0,
+      };
+
+      existing.quantityUsed += qty;
+      existing.totalCost += cost;
+      existing.produceUsage += qty;
+      if (existing.avgCost === 0 && unitCost > 0) existing.avgCost = unitCost;
+      materialUsageMap.set(mId, existing);
+    }
+
+    const totalMaterialCost = Array.from(materialUsageMap.values()).reduce(
+      (sum, m) => sum + m.totalCost,
+      0
+    );
+
+    const materialsUsed = Array.from(materialUsageMap.values())
+      .map((m) => {
+        const avgCost = m.quantityUsed > 0 ? Math.round(m.totalCost / m.quantityUsed) : m.avgCost;
+        return {
+          materialId: m.materialId,
+          name: m.name,
+          group: m.group,
+          baseUnit: m.baseUnit,
+          quantityUsed: Math.round(m.quantityUsed * 100) / 100,
+          avgCost,
+          totalCost: Math.round(m.totalCost),
+          orderUsage: Math.round(m.orderUsage * 100) / 100,
+          produceUsage: Math.round(m.produceUsage * 100) / 100,
+          costShare: totalMaterialCost > 0 ? Number(((m.totalCost / totalMaterialCost) * 100).toFixed(1)) : 0,
+        };
+      })
+      .sort((a, b) => b.totalCost - a.totalCost || b.quantityUsed - a.quantityUsed);
+
+    // 7. Lấy danh sách các đợt cân đối kho (nếu có tạo phiếu Cân đối kho)
+    const reconciliationPurchases = await prisma.purchase.findMany({
+      where: {
+        isDeleted: false,
+        note: { contains: 'Cân đối' },
+        date: {
+          gte: fromDate,
+          lte: toDate,
+        },
+      },
+      include: {
+        lines: {
+          include: {
+            material: true,
+          },
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    const reconciliationBatches = reconciliationPurchases.map((p) => {
+      const periodName = (p.note || '').replace(/^Cân đối kho\s*-\s*/i, '').trim() || p.supplierName;
+      const totalAmount = Number(p.totalAmount) || 0;
+      const items = p.lines.map((l) => {
+        const convertedQty = Number(l.convertedQty) || 0;
+        const lineTotal = Number(l.lineTotal) || 0;
+        const unitCost = convertedQty > 0 ? lineTotal / convertedQty : Number(l.unitPrice) || 0;
+        return {
+          materialId: l.materialId,
+          name: l.material?.name || 'Vật tư',
+          group: l.material?.group || 'khac',
+          baseUnit: l.material?.baseUnit || '',
+          purchaseQty: Number(l.quantity) || 0,
+          convertedQty,
+          unitCost: Math.round(unitCost),
+          lineTotal: Math.round(lineTotal),
+        };
+      });
+      return {
+        id: p.id,
+        periodName,
+        date: p.date,
+        totalAmount: Math.round(totalAmount),
+        itemCount: items.length,
+        items,
+      };
+    });
+
     return NextResponse.json({
       from: fromStr,
       to: toStr,
@@ -226,10 +397,14 @@ export async function GET(request: NextRequest) {
         totalPurchasesAmount: Math.round(totalPurchasesAmount), // Alias
         purchaseCost: Math.round(totalPurchasesAmount), // Alias
         purchasesCount,
+        totalMaterialCost: Math.round(totalMaterialCost),
+        materialItemsCount: materialsUsed.length,
       },
       byChannel,
       channels: byChannel, // Backwards compatibility alias
       topProducts,
+      materialsUsed,
+      reconciliationBatches,
     });
   } catch (error) {
     console.error('Lỗi khi lập báo cáo:', error);
