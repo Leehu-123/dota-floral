@@ -75,27 +75,10 @@ export default function StockCheckPage() {
         const data: Material[] = await res.json();
         setMaterials(data);
 
-        // Pre-fill actual counts, pack counts and loose counts
-        const initialCounts: Record<string, string> = {};
-        const initialPacks: Record<string, string> = {};
-        const initialLoose: Record<string, string> = {};
-
-        data.forEach((m) => {
-          const stock = Number(m.currentStock);
-          initialCounts[m.id] = stock.toString();
-
-          const factor = Number(m.conversionFactor) > 1 ? Number(m.conversionFactor) : 1;
-          if (factor > 1) {
-            const whole = Math.floor(stock / factor);
-            const remainder = Math.round((stock - whole * factor) * 100) / 100;
-            initialPacks[m.id] = whole > 0 ? whole.toString() : '0';
-            initialLoose[m.id] = remainder > 0 ? remainder.toString() : '0';
-          }
-        });
-
-        setActualCounts(initialCounts);
-        setPackCounts(initialPacks);
-        setLooseCounts(initialLoose);
+        // Để trống các ô kiểm kho ban đầu, không điền sẵn số để người dùng không phải mất công xóa
+        setActualCounts({});
+        setPackCounts({});
+        setLooseCounts({});
       } catch (err: any) {
         console.error(err);
         toast.error(err.message || 'Lỗi khi tải dữ liệu nguyên liệu');
@@ -147,8 +130,27 @@ export default function StockCheckPage() {
     }));
   };
 
-  // Reset a specific material to current stock
-  const handleResetItem = (material: Material) => {
+  // Xóa số đã nhập (về lại trạng thái chưa kiểm / rỗng)
+  const handleClearItem = (materialId: string) => {
+    setActualCounts((prev) => {
+      const next = { ...prev };
+      delete next[materialId];
+      return next;
+    });
+    setPackCounts((prev) => {
+      const next = { ...prev };
+      delete next[materialId];
+      return next;
+    });
+    setLooseCounts((prev) => {
+      const next = { ...prev };
+      delete next[materialId];
+      return next;
+    });
+  };
+
+  // Điền nhanh theo tồn hệ thống nếu kiểm đếm khớp với hệ thống
+  const handleFillSystemStock = (material: Material) => {
     const stock = Number(material.currentStock);
     setActualCounts((prev) => ({
       ...prev,
@@ -234,8 +236,9 @@ export default function StockCheckPage() {
       if (onlyDiffs) {
         const currentStock = Number(m.currentStock);
         const valStr = actualCounts[m.id];
-        const actualQty = parseFloat(valStr || '0');
-        return isNaN(actualQty) || Math.abs(actualQty - currentStock) > 0.0001;
+        if (!valStr || valStr.trim() === '') return false;
+        const actualQty = parseFloat(valStr);
+        return !isNaN(actualQty) && Math.abs(actualQty - currentStock) > 0.0001;
       }
 
       return true;
@@ -460,9 +463,11 @@ export default function StockCheckPage() {
           filteredMaterials.map((m) => {
             const currentStock = Number(m.currentStock);
             const valStr = actualCounts[m.id] ?? '';
-            const actualQty = parseFloat(valStr);
-            const hasDiff = !isNaN(actualQty) && Math.abs(actualQty - currentStock) > 0.0001;
-            const diff = !isNaN(actualQty) ? actualQty - currentStock : 0;
+            const isEntered = valStr.trim() !== '';
+            const actualQty = isEntered ? parseFloat(valStr) : NaN;
+            const hasDiff = isEntered && !isNaN(actualQty) && Math.abs(actualQty - currentStock) > 0.0001;
+            const isMatch = isEntered && !isNaN(actualQty) && Math.abs(actualQty - currentStock) <= 0.0001;
+            const diff = isEntered && !isNaN(actualQty) ? actualQty - currentStock : 0;
 
             const factor = getEffectiveFactor(m);
             const isBreakdownMode = (factor > 1 || !!customFactors[m.id]) && !directModeMap[m.id];
@@ -475,6 +480,8 @@ export default function StockCheckPage() {
                     ? diff > 0
                       ? 'border-emerald-200 bg-emerald-50/20 shadow-xs'
                       : 'border-red-200 bg-red-50/20 shadow-xs'
+                    : isMatch
+                    ? 'border-emerald-200 bg-emerald-50/10'
                     : 'border-gray-100 bg-white'
                 }`}
               >
@@ -510,12 +517,19 @@ export default function StockCheckPage() {
                           </Badge>
                         )}
                       </div>
-                    ) : (
+                    ) : isMatch ? (
                       <Badge
                         variant="secondary"
-                        className="text-[11px] bg-gray-100 text-gray-500 font-normal shrink-0"
+                        className="text-[11px] bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold shrink-0"
                       >
                         Khớp kho
+                      </Badge>
+                    ) : (
+                      <Badge
+                        variant="outline"
+                        className="text-[11px] border-dashed border-gray-200 text-gray-400 font-normal shrink-0"
+                      >
+                        Chưa kiểm
                       </Badge>
                     )}
                   </div>
@@ -550,14 +564,23 @@ export default function StockCheckPage() {
                             <Layers className="w-3.5 h-3.5 text-purple-600" />
                             <span>Điền cành nguyên & nhánh lẻ:</span>
                           </div>
-                          {hasDiff && (
+                          {isEntered ? (
                             <button
                               type="button"
-                              onClick={() => handleResetItem(m)}
-                              className="text-[11px] text-purple-700 hover:text-purple-900 hover:underline flex items-center gap-1 font-semibold"
-                              title="Đặt lại bằng tồn hệ thống"
+                              onClick={() => handleClearItem(m.id)}
+                              className="text-[11px] text-red-600 hover:text-red-800 hover:underline flex items-center gap-1 font-semibold"
+                              title="Xóa số đã nhập"
                             >
-                              <RotateCcw className="w-3 h-3" /> Hoàn tác
+                              <RotateCcw className="w-3 h-3" /> Xóa
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleFillSystemStock(m)}
+                              className="text-[11px] text-purple-700 hover:text-purple-900 hover:underline flex items-center gap-1 font-medium"
+                              title="Điền bằng số tồn hệ thống"
+                            >
+                              <CheckCircle2 className="w-3 h-3 text-purple-600" /> Khớp tồn ({formatQty(currentStock)})
                             </button>
                           )}
                         </div>
@@ -619,12 +642,14 @@ export default function StockCheckPage() {
                         {/* Dòng tự động quy đổi */}
                         <div className="flex items-center justify-between pt-2 border-t border-purple-200/60 text-xs bg-white/70 px-2.5 py-1.5 rounded-lg">
                           <span className="text-[11px] text-purple-800 font-medium">
-                            Tự quy đổi: ({packCounts[m.id] || 0} × {factor}) + {looseCounts[m.id] || 0}
+                            {isEntered
+                              ? `Tự quy đổi: (${packCounts[m.id] || 0} × ${factor}) + ${looseCounts[m.id] || 0}`
+                              : `Quy đổi: (Số ${m.purchaseUnit} × ${factor}) + Số ${m.baseUnit} lẻ`}
                           </span>
                           <div className="flex items-center gap-1.5">
                             <span className="text-gray-500 text-[11px]">➔ Tổng thực tế:</span>
                             <span className="font-extrabold text-sm text-purple-950">
-                              {formatQty(actualQty || 0)} {m.baseUnit}
+                              {isEntered ? `${formatQty(actualQty || 0)} ${m.baseUnit}` : '—'}
                             </span>
                           </div>
                         </div>
@@ -668,14 +693,23 @@ export default function StockCheckPage() {
                             >
                               Số thực tế
                             </Label>
-                            {hasDiff && (
+                            {isEntered ? (
                               <button
                                 type="button"
-                                onClick={() => handleResetItem(m)}
-                                className="text-[10px] text-purple-700 hover:underline flex items-center gap-0.5 font-medium"
-                                title="Đặt lại bằng tồn hệ thống"
+                                onClick={() => handleClearItem(m.id)}
+                                className="text-[10px] text-red-600 hover:underline flex items-center gap-0.5 font-medium"
+                                title="Xóa số đã nhập"
                               >
-                                <RotateCcw className="w-2.5 h-2.5" /> Hoàn tác
+                                <RotateCcw className="w-2.5 h-2.5" /> Xóa
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleFillSystemStock(m)}
+                                className="text-[10px] text-purple-700 hover:underline flex items-center gap-0.5 font-medium"
+                                title="Điền nhanh bằng tồn hệ thống"
+                              >
+                                <CheckCircle2 className="w-2.5 h-2.5 text-purple-600" /> Khớp ({formatQty(currentStock)})
                               </button>
                             )}
                           </div>
@@ -686,6 +720,7 @@ export default function StockCheckPage() {
                               step="any"
                               min="0"
                               inputMode="decimal"
+                              placeholder="0"
                               value={valStr}
                               onChange={(e) =>
                                 handleActualCountChange(m.id, e.target.value)
@@ -695,6 +730,8 @@ export default function StockCheckPage() {
                                   ? diff > 0
                                     ? 'border-emerald-400 text-emerald-800 focus:ring-emerald-400'
                                     : 'border-red-400 text-red-800 focus:ring-red-400'
+                                  : isMatch
+                                  ? 'border-emerald-200 text-emerald-800'
                                   : 'border-gray-200'
                               }`}
                             />
