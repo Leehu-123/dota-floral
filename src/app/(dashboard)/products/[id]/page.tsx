@@ -20,6 +20,9 @@ import {
   Flower2,
   Plus,
   Minus,
+  Maximize2,
+  X,
+  PackageCheck,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -94,6 +97,9 @@ export default function ProductDetailPage() {
   const [adjustStock, setAdjustStock] = useState(0);
   const [adjustReason, setAdjustReason] = useState('');
   const [isAdjusting, setIsAdjusting] = useState(false);
+
+  // Full-screen image viewer
+  const [viewingFullImage, setViewingFullImage] = useState(false);
 
   const fetchProduct = async () => {
     if (!id) return;
@@ -411,18 +417,33 @@ export default function ProductDetailPage() {
       {/* 1. Product Info Card */}
       <Card className="rounded-2xl border border-gray-100 shadow-xs bg-white overflow-hidden">
         {product.imageUrl && (
-          <div className="relative w-full aspect-[16/9] sm:aspect-[21/9] max-h-72 bg-gray-100 overflow-hidden">
+          <div className="relative w-full min-h-[320px] sm:min-h-[440px] max-h-[580px] bg-gray-950 overflow-hidden flex items-center justify-center group">
+            {/* Ambient blurred backdrop so vertical flower photos blend seamlessly */}
+            <div
+              className="absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-125 pointer-events-none"
+              style={{ backgroundImage: `url(${product.imageUrl})` }}
+            />
+            {/* Full-view Image: object-contain allows viewing entire bouquet without cropping */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={product.imageUrl}
               alt={product.name}
-              className="w-full h-full object-cover object-center"
+              className="relative z-10 max-h-[560px] max-w-full w-auto h-auto object-contain drop-shadow-2xl cursor-pointer transition-transform duration-300 group-hover:scale-[1.01]"
+              onClick={() => setViewingFullImage(true)}
             />
-            <div className="absolute top-3 left-3">
+            <div className="absolute top-3 left-3 z-20">
               <Badge className="bg-black/60 text-white backdrop-blur-md border-0 text-[11px] font-medium">
                 🌸 Ảnh thành phẩm thực tế
               </Badge>
             </div>
+            <button
+              type="button"
+              onClick={() => setViewingFullImage(true)}
+              className="absolute bottom-3 right-3 z-20 bg-black/60 hover:bg-black/80 text-white backdrop-blur-md px-3 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm"
+            >
+              <Maximize2 className="w-3.5 h-3.5" />
+              <span>Xem toàn bộ ảnh</span>
+            </button>
           </div>
         )}
         <CardContent className="p-4 space-y-2.5">
@@ -501,30 +522,31 @@ export default function ProductDetailPage() {
             </Badge>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 pt-1 border-t border-emerald-100/60">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 border-t border-emerald-100/60">
             <Button
               type="button"
               onClick={() => {
-                setProduceQty(1);
-                setShowProduceDialog(true);
+                setAdjustStock(product.stock || 0);
+                setAdjustReason('Tồn tại cửa hàng sau 20/10');
+                setShowAdjustDialog(true);
               }}
-              className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-10 gap-1.5 shadow-xs"
+              className="rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs h-11 gap-1.5 shadow-xs"
             >
-              <Plus className="w-4 h-4" />
-              <span>Bó sẵn vào kho</span>
+              <PackageCheck className="w-4 h-4" />
+              <span>Nhập hoa có sẵn (Tồn tiệm sau 20/10)</span>
             </Button>
 
             <Button
               type="button"
               variant="outline"
               onClick={() => {
-                setAdjustStock(product.stock || 0);
-                setAdjustReason('');
-                setShowAdjustDialog(true);
+                setProduceQty(1);
+                setShowProduceDialog(true);
               }}
-              className="rounded-xl border-emerald-200 text-emerald-900 hover:bg-emerald-50 text-xs h-10 font-medium"
+              className="rounded-xl border-purple-200 bg-purple-50/60 hover:bg-purple-100 text-purple-950 font-bold text-xs h-11 gap-1.5"
             >
-              <span>Kiểm kê / Báo hỏng</span>
+              <Layers className="w-4 h-4 text-purple-700" />
+              <span>Bó mới từ kho NVL (Có trừ kho)</span>
             </Button>
           </div>
         </CardContent>
@@ -801,13 +823,13 @@ export default function ProductDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Produce Dialog (Bó sẵn vào kho) */}
+      {/* Produce Dialog (Bó mới từ kho NVL) */}
       <Dialog open={showProduceDialog} onOpenChange={setShowProduceDialog}>
         <DialogContent className="rounded-2xl max-w-sm p-5 mx-4">
           <DialogHeader className="text-left pb-1 border-b border-gray-100">
-            <DialogTitle className="text-emerald-700 flex items-center gap-2 text-base">
-              <Flower2 className="w-5 h-5 text-emerald-600" />
-              <span>Bó hoa sẵn vào kho</span>
+            <DialogTitle className="text-purple-950 flex items-center gap-2 text-base font-bold">
+              <Flower2 className="w-5 h-5 text-purple-600" />
+              <span>Bó mới từ kho nguyên vật liệu</span>
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-500">
               Mẫu: <strong className="text-gray-900">{product.name}</strong>
@@ -815,16 +837,39 @@ export default function ProductDetailPage() {
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
-            <div className="bg-emerald-50/70 p-3 rounded-xl border border-emerald-100 text-xs text-emerald-800 space-y-1">
+            <div className="bg-purple-50 p-3 rounded-xl border border-purple-100 text-xs text-purple-900 space-y-1">
               <p className="font-semibold">Cơ chế tự động trừ nguyên liệu:</p>
-              <p className="text-emerald-700 leading-relaxed">
-                Khi lưu, hệ thống sẽ tự động trừ hoa sáp, que cắm, giấy bọc, phụ kiện... theo đúng số lượng bó bạn làm.
+              <p className="text-purple-700 leading-relaxed text-[11px]">
+                Khi lưu, hệ thống sẽ tự động trừ hoa sáp, que cắm, giấy bọc, phụ kiện... trong kho NVL theo đúng số lượng bó bạn làm.
               </p>
+            </div>
+
+            <div className="bg-amber-50 p-3 rounded-xl border border-amber-200 text-xs text-amber-900 space-y-1.5">
+              <p className="font-bold text-[11px] flex items-center gap-1">
+                <span>💡 Lưu ý:</span>
+              </p>
+              <p className="text-[11px] text-amber-800 leading-relaxed">
+                Nếu đây là bó hoa <strong>đã có sẵn từ trước tại tiệm</strong> (ví dụ tồn sau đợt 20/10), bạn vui lòng dùng tính năng <strong>[Nhập hoa có sẵn]</strong> để không bị báo lỗi thiếu kho NVL.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setShowProduceDialog(false);
+                  setAdjustStock(product.stock || 0);
+                  setAdjustReason('Tồn tại tiệm sau 20/10');
+                  setShowAdjustDialog(true);
+                }}
+                className="w-full mt-1 rounded-xl h-8 text-[11px] bg-white border-amber-300 text-amber-900 font-semibold"
+              >
+                👉 Chuyển sang "Nhập hoa có sẵn" (Không trừ NVL)
+              </Button>
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-gray-700">
-                Số lượng bó hoa làm sẵn
+                Số lượng bó hoa làm mới
               </Label>
               <div className="flex items-center gap-3">
                 <Button
@@ -885,7 +930,7 @@ export default function ProductDetailPage() {
               </Button>
               <Button
                 type="button"
-                className="flex-1 rounded-xl h-11 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold"
+                className="flex-1 rounded-xl h-11 bg-purple-600 hover:bg-purple-700 text-white font-semibold"
                 onClick={handleProduce}
                 disabled={isProducing}
               >
@@ -896,22 +941,23 @@ export default function ProductDetailPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Adjust / Damage Dialog */}
+      {/* Adjust / Existing Stock Dialog */}
       <Dialog open={showAdjustDialog} onOpenChange={setShowAdjustDialog}>
         <DialogContent className="rounded-2xl max-w-sm p-5 mx-4">
           <DialogHeader className="text-left pb-1 border-b border-gray-100">
-            <DialogTitle className="text-gray-900 flex items-center gap-2 text-base">
-              <span>Kiểm kê / Báo hỏng thành phẩm</span>
+            <DialogTitle className="text-purple-950 flex items-center gap-2 text-base font-bold">
+              <PackageCheck className="w-5 h-5 text-purple-600" />
+              <span>Nhập hoa có sẵn tại tiệm</span>
             </DialogTitle>
             <DialogDescription className="text-xs text-gray-500">
-              Điều chỉnh số lượng bó hoa thực tế đang có sẵn tại cửa hàng
+              Cập nhật số bó thực tế đang có sẵn tại cửa hàng (như tồn sau 20/10). Thao tác này <strong>KHÔNG trừ kho nguyên vật liệu lẻ</strong>.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-gray-700">
-                Số lượng bó hoa thực tế tại tiệm
+                Số lượng bó hoa thực tế đang có sẵn tại tiệm
               </Label>
               <Input
                 type="number"
@@ -919,22 +965,22 @@ export default function ProductDetailPage() {
                 min="0"
                 value={adjustStock}
                 onChange={(e) => setAdjustStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
-                className="h-11 rounded-xl text-base font-bold"
+                className="h-11 rounded-xl text-base font-bold text-center"
               />
-              <span className="text-[11px] text-muted-foreground block">
+              <span className="text-[11px] text-muted-foreground block text-center">
                 Hiện tại hệ thống ghi nhận: <strong>{product.stock || 0} bó</strong>
               </span>
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold text-gray-700">
-                Lý do (Tùy chọn)
+                Ghi chú đợt tồn (Tùy chọn)
               </Label>
               <Input
                 value={adjustReason}
                 onChange={(e) => setAdjustReason(e.target.value)}
-                placeholder="VD: Hoa để lâu bị bụi/hỏng, kiểm kê định kỳ..."
-                className="h-11 rounded-xl text-sm"
+                placeholder="VD: Bó tồn sau đợt 20/10, hoa cắm mẫu..."
+                className="h-11 rounded-xl text-xs"
               />
             </div>
 
@@ -950,16 +996,49 @@ export default function ProductDetailPage() {
               </Button>
               <Button
                 type="button"
-                className="flex-1 rounded-xl h-11 bg-rose-600 hover:bg-rose-700 text-white font-semibold"
+                className="flex-1 rounded-xl h-11 bg-purple-600 hover:bg-purple-700 text-white font-bold"
                 onClick={handleAdjustStock}
                 disabled={isAdjusting}
               >
-                {isAdjusting ? 'Đang lưu...' : 'Xác nhận cập nhật'}
+                {isAdjusting ? 'Đang lưu...' : 'Lưu tồn hoa có sẵn'}
               </Button>
             </DialogFooter>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Lightbox xem ảnh lớn toàn màn hình */}
+      {viewingFullImage && product.imageUrl && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setViewingFullImage(false)}
+        >
+          <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setViewingFullImage(false)}
+              className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+              title="Đóng xem ảnh"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <div
+            className="relative max-w-4xl max-h-[88vh] w-full h-full flex items-center justify-center p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="max-h-[88vh] max-w-full w-auto h-auto object-contain rounded-xl shadow-2xl"
+            />
+          </div>
+          <p className="text-gray-400 text-xs mt-2 select-none">
+            Bấm bất kỳ đâu hoặc bấm nút X để đóng
+          </p>
+        </div>
+      )}
     </div>
   );
 }

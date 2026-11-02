@@ -15,6 +15,7 @@ const updateProductSchema = z.object({
   overheadPercent: z.coerce.number().min(0, 'Chi phí chung không được âm').optional(),
   targetMargin: z.coerce.number().min(0, 'Biên lợi nhuận mục tiêu không được âm').optional(),
   suggestedPrice: z.coerce.number().min(0, 'Giá bán đề xuất không được âm').optional(),
+  stock: z.coerce.number().int().min(0, 'Số lượng tồn không được âm').optional(),
   materials: z
     .array(
       z.object({
@@ -195,8 +196,23 @@ export async function PUT(
           overheadPercent,
           targetMargin,
           suggestedPrice,
+          ...(data.stock !== undefined ? { stock: data.stock } : {}),
         },
       });
+
+      if (data.stock !== undefined && data.stock !== existing.stock) {
+        const diff = data.stock - existing.stock;
+        await tx.productMovement.create({
+          data: {
+            productId: id,
+            type: 'adjustment',
+            quantity: diff,
+            unitCost: suggestedPrice,
+            refType: 'manual',
+            note: `Cập nhật số bó tồn tiệm khi sửa mẫu (${diff > 0 ? '+' : ''}${diff} bó, không trừ kho NVL)`,
+          },
+        });
+      }
 
       // 7. Xóa toàn bộ liên kết ProductMaterial cũ
       await tx.productMaterial.deleteMany({

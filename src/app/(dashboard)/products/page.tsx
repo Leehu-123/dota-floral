@@ -13,6 +13,8 @@ import {
   Layers,
   ChevronRight,
   Sparkles,
+  Maximize2,
+  X,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,6 +51,7 @@ interface ProductItem {
   totalCost?: number | string;
   materialCost?: number | string;
   margin?: number;
+  stock?: number;
   materials?: ProductMaterialItem[];
   _count?: {
     materials?: number;
@@ -63,6 +66,7 @@ export default function ProductsPage() {
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'low_margin'>('all');
+  const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(null);
 
   const fetchProducts = async () => {
     try {
@@ -343,15 +347,35 @@ export default function ProductsPage() {
                 onClick={() => router.push(`/products/${product.id}`)}
                 className="rounded-2xl border border-gray-100 shadow-xs hover:shadow-md hover:border-purple-300 transition-all cursor-pointer active:scale-[0.99] bg-white overflow-hidden flex flex-col group"
               >
-                {/* Product Image Thumbnail / Banner */}
-                <div className="relative w-full h-44 sm:h-48 bg-purple-50/50 overflow-hidden border-b border-gray-100 flex items-center justify-center">
+                {/* Product Image Thumbnail / Banner - Khung dọc tỉ lệ 3:4 chuẩn bó hoa */}
+                <div className="relative w-full aspect-[4/5] sm:aspect-[3/4] bg-gray-950 overflow-hidden border-b border-gray-100 flex items-center justify-center group/img">
                   {product.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                    />
+                    <>
+                      {/* Ambient blurred backdrop */}
+                      <div
+                        className="absolute inset-0 bg-cover bg-center blur-lg opacity-35 scale-110 pointer-events-none"
+                        style={{ backgroundImage: `url(${product.imageUrl})` }}
+                      />
+                      {/* Foreground bouquet image */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="relative z-10 w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-md"
+                      />
+                      {/* Zoom button on thumbnail */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPreviewImage({ url: product.imageUrl!, name: product.name });
+                        }}
+                        className="absolute bottom-2.5 right-2.5 z-20 p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white backdrop-blur-md opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                        title="Bấm để xem ảnh phóng to"
+                      >
+                        <Maximize2 className="w-3.5 h-3.5" />
+                      </button>
+                    </>
                   ) : (
                     <div className="flex flex-col items-center justify-center text-purple-300 gap-1 select-none py-6">
                       <span className="text-3xl">🌸</span>
@@ -361,19 +385,25 @@ export default function ProductsPage() {
 
                   {/* Margin Pill overlaid on top right of image */}
                   <div
-                    className={`absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full text-xs font-bold border backdrop-blur-md shadow-xs ${marginStyle.badgeClass}`}
+                    className={`absolute top-2.5 right-2.5 px-2.5 py-1 rounded-full text-xs font-bold border backdrop-blur-md shadow-xs z-20 ${marginStyle.badgeClass}`}
                   >
                     <span className={`w-1.5 h-1.5 rounded-full inline-block mr-1.5 ${marginStyle.dotClass}`} />
                     <span>{product.computedMargin.toFixed(0)}% LN</span>
                   </div>
 
-                  {product.type === 'template' && (
-                    <div className="absolute bottom-2 left-2.5">
+                  {/* Stock badge or template badge on bottom left */}
+                  <div className="absolute bottom-2.5 left-2.5 z-20 flex items-center gap-1.5 flex-wrap">
+                    {product.stock && product.stock > 0 ? (
+                      <span className="text-[10px] bg-emerald-600/95 text-white backdrop-blur-md px-2 py-0.5 rounded-md font-bold shadow-xs">
+                        Có sẵn {product.stock} bó
+                      </span>
+                    ) : null}
+                    {product.type === 'template' && (
                       <span className="text-[10px] bg-black/60 text-white backdrop-blur-md px-2 py-0.5 rounded-md font-semibold">
                         Mẫu chuẩn
                       </span>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
 
                 <CardContent className="p-3.5 space-y-2.5 flex-1 flex flex-col justify-between">
@@ -449,6 +479,42 @@ export default function ProductsPage() {
           </Link>
         </Button>
       </div>
+
+      {/* Lightbox Modal xem ảnh lớn khi bấm vào ảnh sản phẩm */}
+      {previewImage && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setPreviewImage(null)}
+        >
+          <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setPreviewImage(null)}
+              className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+              title="Đóng xem ảnh"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <div
+            className="relative max-w-4xl max-h-[88vh] w-full h-full flex flex-col items-center justify-center p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={previewImage.url}
+              alt={previewImage.name}
+              className="max-h-[82vh] max-w-full w-auto h-auto object-contain rounded-xl shadow-2xl"
+            />
+            <p className="text-white font-bold text-sm mt-3 text-center">
+              {previewImage.name}
+            </p>
+          </div>
+          <p className="text-gray-400 text-xs mt-1 select-none">
+            Bấm bất kỳ đâu hoặc bấm nút X để đóng
+          </p>
+        </div>
+      )}
     </div>
   );
 }

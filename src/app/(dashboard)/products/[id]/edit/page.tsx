@@ -19,6 +19,7 @@ import {
   Package,
   RefreshCw,
   X,
+  Flower2,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -78,6 +79,7 @@ export default function EditProductPage() {
   const [laborCost, setLaborCost] = useState<number | string>(0);
   const [overheadPercent, setOverheadPercent] = useState<number | string>(10);
   const [targetMargin, setTargetMargin] = useState<number | string>(40);
+  const [stock, setStock] = useState<number | string>(0);
 
   // Recipe
   const [recipe, setRecipe] = useState<RecipeItem[]>([]);
@@ -146,6 +148,7 @@ export default function EditProductPage() {
       setLaborCost(Number(prodData.laborCost) || 0);
       setOverheadPercent(Number(prodData.overheadPercent) || 0);
       setTargetMargin(Number(prodData.targetMargin) || 40);
+      setStock(Number(prodData.stock) || 0);
 
       if (prodData.materials && Array.isArray(prodData.materials)) {
         setRecipe(
@@ -350,6 +353,7 @@ export default function EditProductPage() {
         overheadPercent: Number(overheadPercent) || 0,
         targetMargin: Number(targetMargin) || 0,
         suggestedPrice: effectivePrice,
+        stock: Number(stock) || 0,
         materials: recipe.map((r) => ({
           materialId: r.materialId,
           quantity: Number(r.quantity),
@@ -527,6 +531,42 @@ export default function EditProductPage() {
                 label="Ảnh chụp sản phẩm thành phẩm"
                 description="Chụp ảnh thực tế bó hoa hoặc tải ảnh mẫu từ máy để khách và thợ dễ xem"
               />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* 1.5. Finished stock in store */}
+        <Card className="rounded-xl border border-purple-100 shadow-xs bg-gradient-to-r from-purple-50/50 via-white to-white">
+          <CardHeader className="p-4 pb-2">
+            <CardTitle className="text-sm font-semibold text-gray-900 flex items-center justify-between">
+              <span className="flex items-center gap-2 text-purple-950 font-bold">
+                <Flower2 className="w-4 h-4 text-purple-600" />
+                <span>Số lượng hoa có sẵn tại tiệm</span>
+              </span>
+              <span className="text-[11px] font-normal text-purple-700 bg-purple-100/70 px-2 py-0.5 rounded-full font-semibold">
+                Không trừ kho NVL
+              </span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-4 space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="w-28 sm:w-32 shrink-0">
+                <Input
+                  id="stock"
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  value={stock}
+                  onChange={(e) => setStock(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  className="h-11 rounded-xl text-center text-lg font-bold text-purple-950"
+                />
+              </div>
+              <div className="text-xs text-gray-600 flex-1">
+                <p className="font-semibold text-gray-900">bó hoa đang có sẵn</p>
+                <p className="text-[11px] text-gray-500 mt-0.5 leading-relaxed">
+                  Cập nhật số bó hoa thực tế đang trưng bày tại cửa hàng (ví dụ sau đợt lễ 20/10). Thao tác này <strong>KHÔNG trừ kho nguyên vật liệu lẻ</strong> vừa kiểm kê.
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

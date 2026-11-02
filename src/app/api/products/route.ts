@@ -15,6 +15,7 @@ const createProductSchema = z.object({
   overheadPercent: z.coerce.number().min(0, 'Chi phí chung không được âm').optional(),
   targetMargin: z.coerce.number().min(0, 'Biên lợi nhuận mục tiêu không được âm').optional(),
   suggestedPrice: z.coerce.number().min(0, 'Giá bán đề xuất không được âm').optional(),
+  initialStock: z.coerce.number().int().min(0, 'Số lượng tồn không được âm').optional().default(0),
   materials: z
     .array(
       z.object({
@@ -166,6 +167,8 @@ export async function POST(request: NextRequest) {
       }
 
       // 5. Tạo Product với type='template' và ProductMaterial trong giao dịch
+      const initialStock = data.initialStock ?? 0;
+
       const product = await tx.product.create({
         data: {
           name: data.name,
@@ -176,6 +179,7 @@ export async function POST(request: NextRequest) {
           overheadPercent,
           targetMargin,
           suggestedPrice,
+          stock: initialStock,
           materials: {
             create: normalizedMaterials.map((m) => ({
               materialId: m.materialId,
@@ -201,6 +205,20 @@ export async function POST(request: NextRequest) {
           },
         },
       });
+
+      // Nếu có hoa thành phẩm tồn sẵn tại cửa hàng (ví dụ sau đợt 20/10), ghi nhận lịch sử không trừ kho NVL
+      if (initialStock > 0) {
+        await tx.productMovement.create({
+          data: {
+            productId: product.id,
+            type: 'adjustment',
+            quantity: initialStock,
+            unitCost: suggestedPrice,
+            refType: 'manual',
+            note: 'Tồn hoa có sẵn ban đầu tại cửa hàng (không trừ kho NVL lẻ)',
+          },
+        });
+      }
 
       return product;
     },

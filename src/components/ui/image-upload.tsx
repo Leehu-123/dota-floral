@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Upload, Camera, Image as ImageIcon, X, Trash2, Link as LinkIcon, Loader2 } from 'lucide-react';
+import { Upload, Camera, Image as ImageIcon, X, Trash2, Link as LinkIcon, Loader2, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -68,6 +68,7 @@ export function ImageUpload({
   const [loading, setLoading] = useState(false);
   const [showUrlInput, setShowUrlInput] = useState(false);
   const [urlValue, setUrlValue] = useState('');
+  const [showZoom, setShowZoom] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,57 +132,90 @@ export function ImageUpload({
       />
 
       {value ? (
-        // Preview Card
-        <div className="relative rounded-2xl border border-purple-200/80 bg-purple-50/30 p-2 overflow-hidden group">
-          <div className="relative aspect-[4/3] w-full max-h-64 rounded-xl overflow-hidden bg-gray-100 flex items-center justify-center">
+        // Preview Card - Khung ảnh lớn hiển thị trọn vẹn bó hoa, không bị cắt xén
+        <div className="relative rounded-2xl border border-purple-200/80 bg-gray-950 p-2 overflow-hidden group shadow-xs">
+          <div className="relative min-h-[300px] sm:min-h-[380px] max-h-[500px] w-full rounded-xl overflow-hidden bg-gray-950 flex items-center justify-center">
+            {/* Ambient blurred background */}
+            <div
+              className="absolute inset-0 bg-cover bg-center blur-2xl opacity-40 scale-125 pointer-events-none"
+              style={{ backgroundImage: `url(${value})` }}
+            />
+
+            {/* Foreground image: object-contain hiển thị 100% bó hoa từ ngọn tới cuống */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={value}
               alt="Ảnh sản phẩm"
-              className="w-full h-full object-cover object-center"
+              className="relative z-10 max-h-[480px] max-w-full w-auto h-auto object-contain drop-shadow-2xl cursor-pointer transition-transform duration-200 group-hover:scale-[1.01]"
+              onClick={() => setShowZoom(true)}
             />
-            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+
+            {/* Overlay buttons on hover */}
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 z-20 pointer-events-none">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowZoom(true)}
+                className="rounded-xl shadow-md text-xs font-semibold gap-1.5 bg-white/95 hover:bg-white text-gray-900 pointer-events-auto"
+              >
+                <Maximize2 className="w-3.5 h-3.5 text-purple-600" />
+                <span>Xem ảnh lớn</span>
+              </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="secondary"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={loading}
-                className="rounded-xl shadow-md text-xs font-semibold gap-1.5 bg-white/90 hover:bg-white text-gray-800"
+                className="rounded-xl shadow-md text-xs font-semibold gap-1.5 bg-white/95 hover:bg-white text-gray-900 pointer-events-auto"
               >
                 <Camera className="w-3.5 h-3.5 text-purple-600" />
-                <span>Đổi ảnh khác</span>
+                <span>Đổi ảnh</span>
               </Button>
               <Button
                 type="button"
                 size="sm"
                 variant="destructive"
                 onClick={() => onChange(null)}
-                className="rounded-xl shadow-md text-xs font-semibold gap-1.5"
+                className="rounded-xl shadow-md text-xs font-semibold gap-1.5 pointer-events-auto"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Xóa</span>
               </Button>
             </div>
+
+            {/* Quick full-size button */}
+            <div className="absolute top-2.5 right-2.5 z-20">
+              <button
+                type="button"
+                onClick={() => setShowZoom(true)}
+                className="p-1.5 rounded-lg bg-black/60 hover:bg-black/80 text-white backdrop-blur-md text-xs font-medium flex items-center gap-1 shadow-xs transition-colors"
+                title="Bấm để xem ảnh phóng to toàn màn hình"
+              >
+                <Maximize2 className="w-3.5 h-3.5" />
+                <span className="text-[10px] hidden sm:inline">Phóng to</span>
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center justify-between px-2 pt-2 text-xs">
-            <span className="text-[11px] text-emerald-700 font-medium flex items-center gap-1">
-              ✓ Đã có ảnh thành phẩm
+          <div className="flex items-center justify-between px-2 pt-2 text-xs text-white">
+            <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
+              ✓ Đã có ảnh thành phẩm (Bấm vào ảnh để xem lớn)
             </span>
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="text-[11px] text-purple-700 font-semibold hover:underline"
+                className="text-[11px] text-purple-300 font-semibold hover:underline"
               >
                 Đổi ảnh
               </button>
-              <span className="text-gray-300">•</span>
+              <span className="text-gray-500">•</span>
               <button
                 type="button"
                 onClick={() => onChange(null)}
-                className="text-[11px] text-red-600 font-medium hover:underline"
+                className="text-[11px] text-red-400 font-medium hover:underline"
               >
                 Xóa
               </button>
@@ -237,6 +271,39 @@ export function ImageUpload({
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Lightbox xem ảnh lớn toàn màn hình */}
+      {showZoom && value && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center p-4 animate-in fade-in duration-200"
+          onClick={() => setShowZoom(false)}
+        >
+          <div className="absolute top-4 right-4 z-50 flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowZoom(false)}
+              className="p-2.5 rounded-full bg-white/20 hover:bg-white/30 text-white transition-colors"
+              title="Đóng xem ảnh"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          <div
+            className="relative max-w-4xl max-h-[85vh] w-full h-full flex items-center justify-center p-2"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={value}
+              alt="Ảnh phóng to chi tiết"
+              className="max-h-[85vh] max-w-full w-auto h-auto object-contain rounded-xl shadow-2xl"
+            />
+          </div>
+          <p className="text-gray-400 text-xs mt-2 select-none">
+            Bấm bất kỳ đâu hoặc bấm nút X để đóng
+          </p>
         </div>
       )}
     </div>

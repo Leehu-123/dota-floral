@@ -598,15 +598,21 @@ export default function InventoryPage() {
                     key={prod.id}
                     className="rounded-2xl border border-gray-100 shadow-xs hover:shadow-md transition-all bg-white overflow-hidden flex flex-col group"
                   >
-                    {/* Product Image Thumbnail */}
-                    <div className="relative w-full h-40 bg-purple-50/50 overflow-hidden border-b border-gray-100 flex items-center justify-center">
+                    {/* Product Image Thumbnail - Khung dọc tỉ lệ 3:4 chuẩn bó hoa */}
+                    <div className="relative w-full aspect-[4/5] sm:aspect-[3/4] bg-gray-950 overflow-hidden border-b border-gray-100 flex items-center justify-center">
                       {prod.imageUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={prod.imageUrl}
-                          alt={prod.name}
-                          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                        />
+                        <>
+                          <div
+                            className="absolute inset-0 bg-cover bg-center blur-lg opacity-35 scale-110 pointer-events-none"
+                            style={{ backgroundImage: `url(${prod.imageUrl})` }}
+                          />
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={prod.imageUrl}
+                            alt={prod.name}
+                            className="relative z-10 w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 drop-shadow-md"
+                          />
+                        </>
                       ) : (
                         <div className="flex flex-col items-center justify-center text-purple-300 gap-1 select-none py-4">
                           <span className="text-3xl">🌸</span>
@@ -615,7 +621,7 @@ export default function InventoryPage() {
                       )}
 
                       {/* Stock badge overlaid */}
-                      <div className="absolute top-2.5 right-2.5">
+                      <div className="absolute top-2.5 right-2.5 z-20">
                         {stock > 0 ? (
                           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100/90 text-emerald-800 border border-emerald-200 backdrop-blur-md shadow-xs">
                             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
