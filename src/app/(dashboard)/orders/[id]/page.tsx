@@ -560,8 +560,8 @@ ${
             </Button>
           )}
 
-          {/* Cancel Button (Available when order is not delivered and not already cancelled) */}
-          {order.status !== 'delivered' && order.status !== 'cancelled' && (
+          {/* Cancel Button (Available when order is not cancelled) */}
+          {order.status !== 'cancelled' && (
             <Button
               variant="outline"
               size="sm"
@@ -581,19 +581,17 @@ ${
             </Button>
           )}
 
-          {/* Delete Button (Available for new or cancelled orders) */}
-          {(order.status === 'new' || order.status === 'cancelled') && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setDeleteDialogOpen(true)}
-              className="rounded-xl border-gray-200 text-gray-500 hover:text-red-600 hover:bg-red-50 h-9 gap-1 text-xs"
-              title="Xóa đơn hàng"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Xóa đơn</span>
-            </Button>
-          )}
+          {/* Delete Button (Available for all orders) */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setDeleteDialogOpen(true)}
+            className="rounded-xl border-gray-200 text-gray-500 hover:text-red-600 hover:bg-red-50 h-9 gap-1 text-xs"
+            title="Xóa đơn hàng"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+            <span>Xóa đơn</span>
+          </Button>
         </div>
       </div>
 
@@ -1132,6 +1130,40 @@ ${
               }
             >
               Hủy đơn
+            </Button>
+          </div>
+        )}
+
+        {/* Delivered actions */}
+        {order.status === 'delivered' && (
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
+              <span className="font-medium">Đơn hàng đã giao thành công</span>
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-8 rounded-lg border-red-200 text-red-600 hover:bg-red-50 text-xs"
+                onClick={() =>
+                  setStatusConfirm({
+                    open: true,
+                    nextStatus: 'cancelled',
+                    label: 'Hủy / Trả hàng',
+                    description:
+                      'Hủy đơn hàng đã giao sẽ hoàn trả lại nguyên vật liệu/sản phẩm vào kho.',
+                  })
+                }
+              >
+                Hủy đơn
+              </Button>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full h-10 rounded-xl border-gray-200 text-gray-500 hover:text-red-600 hover:bg-red-50 text-xs gap-1.5"
+              onClick={() => setDeleteDialogOpen(true)}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Xóa đơn hàng này (Đơn test / Nhầm)</span>
             </Button>
           </div>
         )}

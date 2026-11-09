@@ -425,17 +425,13 @@ export async function DELETE(
       );
     }
 
-    // Không cho phép xóa đơn đã giao để đảm bảo toàn vẹn dữ liệu doanh thu
-    if (existingOrder.status === 'delivered') {
-      return NextResponse.json(
-        { error: 'Đơn hàng đã giao thành công, không thể xóa để bảo toàn số liệu doanh thu và kho' },
-        { status: 400 }
-      );
-    }
-
     await prisma.$transaction(async (tx) => {
-      // Nếu đơn đang làm hoặc đã hoàn thành (đã trừ kho), hoàn lại kho trước khi xóa
-      if (existingOrder.status === 'in_progress' || existingOrder.status === 'completed') {
+      // Nếu đơn đang làm, đã hoàn thành hoặc đã giao (đã trừ kho), hoàn lại kho trước khi xóa
+      if (
+        existingOrder.status === 'in_progress' ||
+        existingOrder.status === 'completed' ||
+        existingOrder.status === 'delivered'
+      ) {
         for (const line of existingOrder.lines) {
           if (line.fromStock && line.productId) {
             await tx.product.update({
@@ -455,7 +451,7 @@ export async function DELETE(
           }
         }
 
-        // Xóa các stock movements liên quan đến đơn này
+        // Xóa các movements liên quan đến đơn này
         await tx.productMovement.deleteMany({
           where: { refType: 'order', refId: existingOrder.id },
         });

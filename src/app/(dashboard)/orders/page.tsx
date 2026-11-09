@@ -537,19 +537,17 @@ export default function OrdersPage() {
                     </Badge>
 
                     <div className="flex items-center gap-2">
-                      {(order.status === 'new' || order.status === 'cancelled') && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setOrderToDelete(order);
-                          }}
-                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                          title="Xóa đơn hàng này"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setOrderToDelete(order);
+                        }}
+                        className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                        title="Xóa đơn hàng này"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                       <span className="text-base font-bold text-rose-600">
                         {formatVND(order.totalAmount)}
                       </span>

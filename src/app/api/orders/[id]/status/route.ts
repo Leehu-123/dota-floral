@@ -57,8 +57,8 @@ export async function PUT(
 
       const currentStatus = order.status;
 
-      // Không thể thay đổi trạng thái của đơn hàng đã giao (delivered)
-      if (currentStatus === 'delivered') {
+      // Không thể thay đổi trạng thái của đơn hàng đã giao (delivered) trừ khi hủy đơn
+      if (currentStatus === 'delivered' && newStatus !== 'cancelled') {
         throw new Error('DELIVERED_IMMUTABLE');
       }
 
