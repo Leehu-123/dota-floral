@@ -530,8 +530,9 @@ function NewOrderForm() {
         throw new Error(data.error || 'Không thể tạo đơn hàng');
       }
 
-      // If in-store retail or forceComplete, immediately mark completed to deduct stock!
-      if (channel === 'tai_tiem' || forceComplete) {
+      // If in-store retail WITHOUT advance delivery appointment, immediately mark completed to deduct stock!
+      const isAdvanceOrder = Boolean(deliveryDateTime);
+      if ((channel === 'tai_tiem' && !isAdvanceOrder) || forceComplete) {
         try {
           const statusRes = await fetch(`/api/orders/${data.id}/status`, {
             method: 'PUT',
@@ -903,12 +904,13 @@ function NewOrderForm() {
                     })}
                   </div>
 
-                  <div className="space-y-2 pt-1 border-t border-gray-100">
+                  <div className="space-y-2.5 pt-2 border-t border-gray-100">
                     <div className="flex items-center justify-between">
-                      <Label className="text-xs font-semibold text-gray-700">
-                        Ngày & Giờ nhận
+                      <Label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-rose-500" />
+                        <span>Thời gian hẹn giao / nhận hoa</span>
                       </Label>
-                      <div className="flex gap-1.5">
+                      <div className="flex gap-1">
                         <button
                           type="button"
                           onClick={() => setQuickDate('today')}
@@ -923,22 +925,62 @@ function NewOrderForm() {
                         >
                           Ngày mai
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const d = new Date();
+                            d.setDate(d.getDate() + 2);
+                            const yyyy = d.getFullYear();
+                            const mm = String(d.getMonth() + 1).padStart(2, '0');
+                            const dd = String(d.getDate()).padStart(2, '0');
+                            setDeliveryDate(`${yyyy}-${mm}-${dd}`);
+                            if (!deliveryTime) setDeliveryTime('10:00');
+                          }}
+                          className="text-[11px] font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 px-2 py-0.5 rounded-lg"
+                        >
+                          Ngày kia
+                        </button>
                       </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2">
-                      <Input
-                        type="date"
-                        value={deliveryDate}
-                        onChange={(e) => setDeliveryDate(e.target.value)}
-                        className="h-11 rounded-xl text-xs px-3"
-                      />
-                      <Input
-                        type="time"
-                        value={deliveryTime}
-                        onChange={(e) => setDeliveryTime(e.target.value)}
-                        className="h-11 rounded-xl text-xs px-3"
-                      />
+                      <div>
+                        <Label className="text-[10px] text-gray-500 mb-1 block">Ngày hẹn</Label>
+                        <Input
+                          type="date"
+                          value={deliveryDate}
+                          onChange={(e) => setDeliveryDate(e.target.value)}
+                          className="h-10 rounded-xl text-xs px-3"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] text-gray-500 mb-1 block">Giờ hẹn</Label>
+                        <Input
+                          type="time"
+                          value={deliveryTime}
+                          onChange={(e) => setDeliveryTime(e.target.value)}
+                          className="h-10 rounded-xl text-xs px-3"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Quick time selection chips */}
+                    <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+                      <span className="text-[10px] text-gray-500 shrink-0">Giờ nhanh:</span>
+                      {['08:30', '10:00', '11:30', '14:00', '16:30', '18:00'].map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setDeliveryTime(t)}
+                          className={`text-[10px] px-2 py-0.5 rounded-md border font-semibold shrink-0 transition-colors ${
+                            deliveryTime === t
+                              ? 'bg-rose-600 text-white border-rose-600'
+                              : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                          }`}
+                        >
+                          {t}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
@@ -1047,6 +1089,70 @@ function NewOrderForm() {
                       className="h-9 rounded-lg text-xs mt-1"
                     />
                   </div>
+                </div>
+              )}
+
+              {/* Optional Advance Order Delivery Date/Time for in-store orders */}
+              {channel === 'tai_tiem' && (
+                <div className="p-2.5 rounded-xl bg-purple-50/60 border border-purple-100 space-y-2">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-bold text-purple-950 flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5 text-purple-600" />
+                      <span>{deliveryDate ? 'Hẹn giờ lấy hoa:' : 'Hẹn ngày giờ (Đơn đặt trước)'}</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (deliveryDate) {
+                          setDeliveryDate('');
+                          setDeliveryTime('');
+                        } else {
+                          const now = new Date();
+                          const vn = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+                          setDeliveryDate(vn.toISOString().slice(0, 10));
+                          setDeliveryTime('10:00');
+                        }
+                      }}
+                      className="text-[11px] font-bold text-purple-700 underline"
+                    >
+                      {deliveryDate ? 'Khách lấy ngay' : '+ Hẹn giờ'}
+                    </button>
+                  </div>
+
+                  {deliveryDate && (
+                    <div className="space-y-2 pt-1 border-t border-purple-100">
+                      <div className="grid grid-cols-2 gap-2">
+                        <Input
+                          type="date"
+                          value={deliveryDate}
+                          onChange={(e) => setDeliveryDate(e.target.value)}
+                          className="h-9 rounded-lg text-xs bg-white"
+                        />
+                        <Input
+                          type="time"
+                          value={deliveryTime}
+                          onChange={(e) => setDeliveryTime(e.target.value)}
+                          className="h-9 rounded-lg text-xs bg-white"
+                        />
+                      </div>
+                      <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                        {['08:30', '10:00', '14:00', '16:30', '18:00'].map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setDeliveryTime(t)}
+                            className={`text-[10px] px-2 py-0.5 rounded border font-semibold shrink-0 ${
+                              deliveryTime === t
+                                ? 'bg-purple-600 text-white border-purple-600'
+                                : 'bg-white text-gray-600 border-gray-200'
+                            }`}
+                          >
+                            {t}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 

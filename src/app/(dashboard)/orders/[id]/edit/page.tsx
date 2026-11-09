@@ -721,42 +721,83 @@ export default function EditOrderPage() {
             </button>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-semibold text-gray-700">
-                Ngày & Giờ nhận
+              <Label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                <Clock className="w-3.5 h-3.5 text-rose-500" />
+                <span>Thời gian hẹn giao / nhận hoa</span>
               </Label>
               <div className="flex gap-1.5">
                 <button
                   type="button"
                   onClick={() => setQuickDate('today')}
-                  className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md"
+                  className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md hover:bg-rose-100"
                 >
                   Hôm nay
                 </button>
                 <button
                   type="button"
                   onClick={() => setQuickDate('tomorrow')}
-                  className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md"
+                  className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md hover:bg-rose-100"
                 >
                   Ngày mai
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const d = new Date();
+                    d.setDate(d.getDate() + 2);
+                    const yyyy = d.getFullYear();
+                    const mm = String(d.getMonth() + 1).padStart(2, '0');
+                    const dd = String(d.getDate()).padStart(2, '0');
+                    setDeliveryDate(`${yyyy}-${mm}-${dd}`);
+                    if (!deliveryTime) setDeliveryTime('10:00');
+                  }}
+                  className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-0.5 rounded-md hover:bg-rose-100"
+                >
+                  Ngày kia
                 </button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-2">
-              <Input
-                type="date"
-                value={deliveryDate}
-                onChange={(e) => setDeliveryDate(e.target.value)}
-                className="h-11 rounded-xl text-xs px-3"
-              />
-              <Input
-                type="time"
-                value={deliveryTime}
-                onChange={(e) => setDeliveryTime(e.target.value)}
-                className="h-11 rounded-xl text-xs px-3"
-              />
+              <div>
+                <Label className="text-[10px] text-gray-500 mb-1 block">Ngày hẹn</Label>
+                <Input
+                  type="date"
+                  value={deliveryDate}
+                  onChange={(e) => setDeliveryDate(e.target.value)}
+                  className="h-10 rounded-xl text-xs px-3"
+                />
+              </div>
+              <div>
+                <Label className="text-[10px] text-gray-500 mb-1 block">Giờ hẹn</Label>
+                <Input
+                  type="time"
+                  value={deliveryTime}
+                  onChange={(e) => setDeliveryTime(e.target.value)}
+                  className="h-10 rounded-xl text-xs px-3"
+                />
+              </div>
+            </div>
+
+            {/* Quick time selection chips */}
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-0.5">
+              <span className="text-[10px] text-gray-500 shrink-0">Giờ nhanh:</span>
+              {['08:30', '10:00', '11:30', '14:00', '16:30', '18:00'].map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setDeliveryTime(t)}
+                  className={`text-[10px] px-2 py-0.5 rounded-md border font-semibold shrink-0 transition-colors ${
+                    deliveryTime === t
+                      ? 'bg-rose-600 text-white border-rose-600'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                  }`}
+                >
+                  {t}
+                </button>
+              ))}
             </div>
           </div>
 

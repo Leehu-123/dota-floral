@@ -17,12 +17,21 @@ import {
   ChevronRight,
   X,
   AlertCircle,
+  Trash2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { formatVND, formatDate, formatDateTime, formatTime } from '@/lib/format';
 import {
   ORDER_STATUSES,
@@ -74,6 +83,32 @@ export default function OrdersPage() {
   const [orders, setOrders] = useState<OrderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Delete Order Modal state
+  const [orderToDelete, setOrderToDelete] = useState<OrderItem | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleConfirmDelete = async () => {
+    if (!orderToDelete) return;
+    try {
+      setDeleting(true);
+      const res = await fetch(`/api/orders/${orderToDelete.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Không thể xóa đơn hàng');
+      }
+      toast.success(`Đã xóa đơn ${orderToDelete.code}`);
+      setOrders((prev) => prev.filter((o) => o.id !== orderToDelete.id));
+      setOrderToDelete(null);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Lỗi khi xóa đơn hàng');
+    } finally {
+      setDeleting(false);
+    }
+  };
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState<string>('all');
 
@@ -459,6 +494,24 @@ export default function OrdersPage() {
                     </div>
                   </div>
 
+                  {/* Prominent Delivery Appointment Banner */}
+                  {order.deliveryDate && (
+                    <div className="flex items-center justify-between text-xs p-2 rounded-xl bg-purple-50/70 border border-purple-200/80 text-purple-950">
+                      <div className="flex items-center gap-1.5 font-semibold truncate">
+                        <Clock className="w-3.5 h-3.5 text-purple-600 shrink-0" />
+                        <span className="truncate">
+                          Hẹn {order.deliveryType === 'ship' ? 'giao' : 'lấy'}:{' '}
+                          <strong className="text-purple-700">
+                            {formatDateTime(order.deliveryDate)}
+                          </strong>
+                        </span>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] bg-white border-purple-200 text-purple-800 shrink-0 ml-1">
+                        {order.deliveryType === 'ship' ? 'Ship' : 'Tại tiệm'}
+                      </Badge>
+                    </div>
+                  )}
+
                   {/* Delivery / Date Info Row */}
                   <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-gray-50">
                     <div className="flex items-center gap-1.5">
@@ -470,23 +523,9 @@ export default function OrdersPage() {
                       <span>
                         {getLabel(DELIVERY_TYPES, order.deliveryType)}
                       </span>
-                      {order.deliveryDate && (
-                        <>
-                          <span>•</span>
-                          <span
-                            className={
-                              isDeliveryToday(order.deliveryDate)
-                                ? 'text-amber-700 font-semibold'
-                                : ''
-                            }
-                          >
-                            {formatDateTime(order.deliveryDate)}
-                          </span>
-                        </>
-                      )}
                     </div>
 
-                    <span>{formatDate(order.orderDate)}</span>
+                    <span>Ngày đặt: {formatDate(order.orderDate)}</span>
                   </div>
 
                   {/* Bottom Financial & Payment Row */}
@@ -497,7 +536,20 @@ export default function OrdersPage() {
                       {paymentStyle.label}
                     </Badge>
 
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-2">
+                      {(order.status === 'new' || order.status === 'cancelled') && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setOrderToDelete(order);
+                          }}
+                          className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                          title="Xóa đơn hàng này"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                       <span className="text-base font-bold text-rose-600">
                         {formatVND(order.totalAmount)}
                       </span>
@@ -523,6 +575,43 @@ export default function OrdersPage() {
           </Link>
         </Button>
       </div>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={Boolean(orderToDelete)} onOpenChange={(open) => !open && setOrderToDelete(null)}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-2">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-center text-base font-bold text-gray-900">
+              Xóa đơn hàng {orderToDelete?.code}?
+            </DialogTitle>
+            <DialogDescription className="text-center text-xs text-gray-600 pt-1 leading-relaxed">
+              Thao tác này sẽ xóa đơn hàng khỏi hệ thống và không thể hoàn tác. Bạn có chắc chắn muốn xóa?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-row gap-2 sm:justify-end pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 rounded-xl border-gray-200 text-xs font-semibold"
+              onClick={() => setOrderToDelete(null)}
+              disabled={deleting}
+            >
+              Giữ lại đơn
+            </Button>
+            <Button
+              type="button"
+              className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold gap-1 shadow-xs"
+              onClick={handleConfirmDelete}
+              disabled={deleting}
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>{deleting ? 'Đang xóa...' : 'Xóa đơn'}</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

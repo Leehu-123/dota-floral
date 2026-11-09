@@ -409,6 +409,13 @@ export async function DELETE(
         id,
         isDeleted: false,
       },
+      include: {
+        lines: {
+          include: {
+            materials: true,
+          },
+        },
+      },
     });
 
     if (!existingOrder) {
@@ -418,19 +425,53 @@ export async function DELETE(
       );
     }
 
-    // Chỉ cho phép xóa mềm khi đơn ở trạng thái 'new' hoặc 'cancelled'
-    if (existingOrder.status !== 'new' && existingOrder.status !== 'cancelled') {
+    // Không cho phép xóa đơn đã giao để đảm bảo toàn vẹn dữ liệu doanh thu
+    if (existingOrder.status === 'delivered') {
       return NextResponse.json(
-        { error: 'Chỉ có thể xóa đơn hàng ở trạng thái Mới hoặc Đã hủy' },
+        { error: 'Đơn hàng đã giao thành công, không thể xóa để bảo toàn số liệu doanh thu và kho' },
         { status: 400 }
       );
     }
 
-    await prisma.order.update({
-      where: { id },
-      data: {
-        isDeleted: true,
-      },
+    await prisma.$transaction(async (tx) => {
+      // Nếu đơn đang làm hoặc đã hoàn thành (đã trừ kho), hoàn lại kho trước khi xóa
+      if (existingOrder.status === 'in_progress' || existingOrder.status === 'completed') {
+        for (const line of existingOrder.lines) {
+          if (line.fromStock && line.productId) {
+            await tx.product.update({
+              where: { id: line.productId },
+              data: { stock: { increment: line.quantity } },
+            });
+          } else {
+            for (const olm of line.materials) {
+              const returnQty = Number(olm.quantity) * line.quantity;
+              if (returnQty > 0) {
+                await tx.material.update({
+                  where: { id: olm.materialId },
+                  data: { currentStock: { increment: returnQty } },
+                });
+              }
+            }
+          }
+        }
+
+        // Xóa các stock movements liên quan đến đơn này
+        await tx.productMovement.deleteMany({
+          where: { refType: 'order', refId: existingOrder.id },
+        });
+        await tx.stockMovement.deleteMany({
+          where: { refType: 'order', refId: existingOrder.id },
+        });
+      }
+
+      // Xóa mềm đơn hàng
+      await tx.order.update({
+        where: { id },
+        data: {
+          isDeleted: true,
+          status: 'cancelled',
+        },
+      });
     });
 
     return NextResponse.json({

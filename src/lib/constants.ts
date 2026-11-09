@@ -17,11 +17,11 @@ export const CHANNELS = [
 ] as const;
 
 export const ORDER_STATUSES = [
-  { value: 'new', label: 'Mới', color: 'bg-blue-100 text-blue-700' },
-  { value: 'in_progress', label: 'Đang làm', color: 'bg-yellow-100 text-yellow-700' },
-  { value: 'completed', label: 'Hoàn thành', color: 'bg-green-100 text-green-700' },
-  { value: 'delivered', label: 'Đã giao', color: 'bg-emerald-100 text-emerald-700' },
-  { value: 'cancelled', label: 'Hủy', color: 'bg-red-100 text-red-700' },
+  { value: 'new', label: 'Mới', color: 'bg-blue-100 text-blue-800' },
+  { value: 'in_progress', label: 'Đang làm', color: 'bg-amber-100 text-amber-800' },
+  { value: 'completed', label: 'Hoàn thành', color: 'bg-purple-100 text-purple-800' },
+  { value: 'delivered', label: 'Đã giao', color: 'bg-emerald-100 text-emerald-800' },
+  { value: 'cancelled', label: 'Đã hủy', color: 'bg-rose-100 text-rose-800' },
 ] as const;
 
 export const PAYMENT_STATUSES = [

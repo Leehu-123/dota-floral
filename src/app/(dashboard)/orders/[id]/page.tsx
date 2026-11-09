@@ -27,6 +27,7 @@ import {
   ChevronRight,
   Info,
   QrCode,
+  Trash2,
 } from 'lucide-react';
 import { PaymentQrDialog } from '@/components/payment-qr-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -150,6 +151,21 @@ export default function OrderDetailPage() {
   });
   const [updatingPayment, setUpdatingPayment] = useState(false);
 
+  // Delete Order Modal
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingOrder, setDeletingOrder] = useState(false);
+
+  // Delivery Appointment Dialog
+  const [deliveryDialogOpen, setDeliveryDialogOpen] = useState(false);
+  const [updatingDelivery, setUpdatingDelivery] = useState(false);
+  const [deliveryForm, setDeliveryForm] = useState({
+    deliveryType: 'pickup',
+    deliveryDate: '',
+    deliveryTime: '',
+    shippingFee: 0,
+    note: '',
+  });
+
   // Fetch Order
   const fetchOrder = async () => {
     if (!orderId) return;
@@ -262,6 +278,95 @@ export default function OrderDetailPage() {
       toast.error(err.message || 'Lỗi khi cập nhật thanh toán');
     } finally {
       setUpdatingPayment(false);
+    }
+  };
+
+  // Open delivery appointment dialog
+  const handleOpenDeliveryDialog = () => {
+    if (!order) return;
+    let initialDate = '';
+    let initialTime = '';
+    if (order.deliveryDate) {
+      const d = new Date(order.deliveryDate);
+      const vnD = new Date(d.getTime() + 7 * 60 * 60 * 1000);
+      initialDate = vnD.toISOString().slice(0, 10);
+      initialTime = vnD.toISOString().slice(11, 16);
+    } else {
+      const now = new Date();
+      const vnNow = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+      initialDate = vnNow.toISOString().slice(0, 10);
+      initialTime = '10:00';
+    }
+
+    setDeliveryForm({
+      deliveryType: order.deliveryType || 'pickup',
+      deliveryDate: initialDate,
+      deliveryTime: initialTime,
+      shippingFee: Number(order.shippingFee) || 0,
+      note: order.note || '',
+    });
+    setDeliveryDialogOpen(true);
+  };
+
+  // Handle submit delivery appointment update
+  const handleUpdateDelivery = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order) return;
+    try {
+      setUpdatingDelivery(true);
+      let deliveryDateTime: string | null = null;
+      if (deliveryForm.deliveryDate) {
+        const timePart = deliveryForm.deliveryTime || '12:00';
+        deliveryDateTime = new Date(`${deliveryForm.deliveryDate}T${timePart}:00`).toISOString();
+      }
+
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          deliveryType: deliveryForm.deliveryType,
+          deliveryDate: deliveryDateTime,
+          shippingFee: deliveryForm.deliveryType === 'ship' ? Number(deliveryForm.shippingFee) || 0 : 0,
+          note: deliveryForm.note.trim() || undefined,
+        }),
+      });
+
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.error || 'Không thể cập nhật lịch hẹn giao');
+      }
+
+      toast.success('Đã cập nhật ngày & giờ hẹn giao đơn hàng');
+      setDeliveryDialogOpen(false);
+      fetchOrder();
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Lỗi khi cập nhật lịch hẹn');
+    } finally {
+      setUpdatingDelivery(false);
+    }
+  };
+
+  // Handle delete order
+  const handleDeleteOrder = async () => {
+    if (!order) return;
+    try {
+      setDeletingOrder(true);
+      const res = await fetch(`/api/orders/${order.id}`, {
+        method: 'DELETE',
+      });
+      const resData = await res.json();
+      if (!res.ok) {
+        throw new Error(resData.error || 'Không thể xóa đơn hàng');
+      }
+      toast.success('Đã xóa đơn hàng thành công');
+      setDeleteDialogOpen(false);
+      router.push('/orders');
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || 'Lỗi khi xóa đơn hàng');
+    } finally {
+      setDeletingOrder(false);
     }
   };
 
@@ -438,20 +543,58 @@ ${
           </div>
         </div>
 
-        {/* Edit Button (Available when order status is 'new') */}
-        {order.status === 'new' && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50 h-9 gap-1"
-            asChild
-          >
-            <Link href={`/orders/${order.id}/edit`}>
-              <Edit className="w-3.5 h-3.5" />
-              <span className="text-xs">Sửa</span>
-            </Link>
-          </Button>
-        )}
+        {/* Header Action Buttons */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Edit Button (Available when order status is 'new') */}
+          {order.status === 'new' && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-gray-200 text-gray-700 hover:bg-gray-50 h-9 gap-1"
+              asChild
+            >
+              <Link href={`/orders/${order.id}/edit`}>
+                <Edit className="w-3.5 h-3.5" />
+                <span className="text-xs">Sửa</span>
+              </Link>
+            </Button>
+          )}
+
+          {/* Cancel Button (Available when order is not delivered and not already cancelled) */}
+          {order.status !== 'delivered' && order.status !== 'cancelled' && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                setStatusConfirm({
+                  open: true,
+                  nextStatus: 'cancelled',
+                  label: 'Hủy đơn hàng',
+                  description:
+                    'Bạn có chắc chắn muốn hủy đơn hàng này? Hệ thống sẽ hoàn lại các nguyên vật liệu/sản phẩm đã trừ cho đơn này vào lại kho.',
+                })
+              }
+              className="rounded-xl border-red-200 text-red-600 hover:bg-red-50 h-9 gap-1 text-xs font-semibold"
+            >
+              <XCircle className="w-3.5 h-3.5" />
+              <span>Hủy đơn</span>
+            </Button>
+          )}
+
+          {/* Delete Button (Available for new or cancelled orders) */}
+          {(order.status === 'new' || order.status === 'cancelled') && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeleteDialogOpen(true)}
+              className="rounded-xl border-gray-200 text-gray-500 hover:text-red-600 hover:bg-red-50 h-9 gap-1 text-xs"
+              title="Xóa đơn hàng"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Xóa đơn</span>
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* 2. Visual Status Progression Bar */}
@@ -488,6 +631,22 @@ ${
                   const isCompleted = idx < currentStepIndex;
                   const isCurrent = idx === currentStepIndex;
 
+                  let currentBg = 'bg-rose-600 text-white ring-4 ring-rose-100 shadow-sm';
+                  let currentText = 'font-bold text-rose-600';
+                  if (step.key === 'new') {
+                    currentBg = 'bg-blue-600 text-white ring-4 ring-blue-100 shadow-sm';
+                    currentText = 'font-bold text-blue-700';
+                  } else if (step.key === 'in_progress') {
+                    currentBg = 'bg-amber-500 text-white ring-4 ring-amber-100 shadow-sm';
+                    currentText = 'font-bold text-amber-700';
+                  } else if (step.key === 'completed') {
+                    currentBg = 'bg-purple-600 text-white ring-4 ring-purple-100 shadow-sm';
+                    currentText = 'font-bold text-purple-700';
+                  } else if (step.key === 'delivered') {
+                    currentBg = 'bg-emerald-600 text-white ring-4 ring-emerald-100 shadow-sm';
+                    currentText = 'font-bold text-emerald-700';
+                  }
+
                   return (
                     <div
                       key={step.key}
@@ -498,7 +657,7 @@ ${
                           isCompleted
                             ? 'bg-rose-600 text-white shadow-xs'
                             : isCurrent
-                            ? 'bg-rose-600 text-white ring-4 ring-rose-100 shadow-sm'
+                            ? currentBg
                             : 'bg-white border-2 border-gray-300 text-gray-400'
                         }`}
                       >
@@ -511,7 +670,7 @@ ${
                       <span
                         className={`text-[11px] mt-1.5 whitespace-nowrap ${
                           isCurrent
-                            ? 'font-bold text-rose-600'
+                            ? currentText
                             : isCompleted
                             ? 'font-medium text-gray-800'
                             : 'text-gray-400'
@@ -582,16 +741,28 @@ ${
             </Badge>
           </div>
 
-          <div className="bg-gray-50/80 rounded-xl p-3 flex items-center justify-between text-xs">
-            <span className="text-muted-foreground flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-gray-400" />
-              <span>Thời gian giao:</span>
+          <div className="bg-purple-50/60 border border-purple-100 rounded-xl p-3 flex items-center justify-between text-xs">
+            <span className="text-purple-900 font-semibold flex items-center gap-1.5">
+              <Clock className="w-3.5 h-3.5 text-purple-600" />
+              <span>Hẹn ngày & giờ giao:</span>
             </span>
-            <span className="font-semibold text-gray-800">
-              {order.deliveryDate
-                ? formatDateTime(order.deliveryDate)
-                : 'Chưa hẹn giờ'}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className={`font-bold ${order.deliveryDate ? 'text-purple-950 text-sm' : 'text-gray-400 italic'}`}>
+                {order.deliveryDate
+                  ? formatDateTime(order.deliveryDate)
+                  : 'Chưa hẹn giờ'}
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleOpenDeliveryDialog}
+                className="h-7 px-2.5 text-[11px] rounded-lg border-purple-300 text-purple-700 hover:bg-purple-100/70 font-bold gap-1 shadow-2xs"
+              >
+                <Calendar className="w-3 h-3" />
+                <span>{order.deliveryDate ? 'Đổi lịch' : '+ Hẹn giờ'}</span>
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -851,35 +1022,46 @@ ${
       <div className="space-y-2 pt-2">
         {/* New order actions */}
         {order.status === 'new' && (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                className="h-11 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-xs text-sm"
+                onClick={() =>
+                  setStatusConfirm({
+                    open: true,
+                    nextStatus: 'in_progress',
+                    label: 'Bắt đầu làm đơn này',
+                    description:
+                      'Chuyển đơn hàng sang trạng thái "Đang làm". Hệ thống sẽ kiểm tra và tạm giữ/xuất kho vật tư nếu cần.',
+                  })
+                }
+              >
+                Bắt đầu làm
+              </Button>
+              <Button
+                variant="outline"
+                className="h-11 rounded-xl border-red-200 text-red-600 hover:bg-red-50 font-semibold text-sm"
+                onClick={() =>
+                  setStatusConfirm({
+                    open: true,
+                    nextStatus: 'cancelled',
+                    label: 'Hủy đơn hàng này',
+                    description:
+                      'Bạn có chắc chắn muốn hủy đơn hàng này?',
+                  })
+                }
+              >
+                Hủy đơn
+              </Button>
+            </div>
             <Button
-              className="h-11 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold shadow-xs text-sm"
-              onClick={() =>
-                setStatusConfirm({
-                  open: true,
-                  nextStatus: 'in_progress',
-                  label: 'Bắt đầu làm đơn này',
-                  description:
-                    'Chuyển đơn hàng sang trạng thái "Đang làm". Hệ thống sẽ kiểm tra và tạm giữ/xuất kho vật tư nếu cần.',
-                })
-              }
+              type="button"
+              variant="ghost"
+              className="w-full h-9 rounded-xl text-xs text-gray-500 hover:text-red-600 hover:bg-red-50 gap-1.5"
+              onClick={() => setDeleteDialogOpen(true)}
             >
-              Bắt đầu làm
-            </Button>
-            <Button
-              variant="outline"
-              className="h-11 rounded-xl border-red-200 text-red-600 hover:bg-red-50 font-semibold text-sm"
-              onClick={() =>
-                setStatusConfirm({
-                  open: true,
-                  nextStatus: 'cancelled',
-                  label: 'Hủy đơn hàng này',
-                  description:
-                    'Bạn có chắc chắn muốn hủy đơn hàng này? Thao tác này không thể hoàn tác.',
-                })
-              }
-            >
-              Hủy đơn
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Xóa đơn hàng này</span>
             </Button>
           </div>
         )}
@@ -888,7 +1070,7 @@ ${
         {order.status === 'in_progress' && (
           <div className="grid grid-cols-2 gap-2">
             <Button
-              className="h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs text-sm"
+              className="h-11 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold shadow-xs text-sm"
               onClick={() =>
                 setStatusConfirm({
                   open: true,
@@ -921,19 +1103,49 @@ ${
 
         {/* Completed actions */}
         {order.status === 'completed' && (
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              className="h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs text-sm"
+              onClick={() =>
+                setStatusConfirm({
+                  open: true,
+                  nextStatus: 'delivered',
+                  label: 'Xác nhận đã giao hàng',
+                  description:
+                    'Đơn hàng đã được giao tận tay khách hoặc khách đã đến lấy tại tiệm.',
+                })
+              }
+            >
+              Đã giao hàng
+            </Button>
+            <Button
+              variant="outline"
+              className="h-11 rounded-xl border-red-200 text-red-600 hover:bg-red-50 font-semibold text-sm"
+              onClick={() =>
+                setStatusConfirm({
+                  open: true,
+                  nextStatus: 'cancelled',
+                  label: 'Hủy đơn hàng',
+                  description:
+                    'Hủy đơn hàng sẽ hoàn lại các nguyên vật liệu/sản phẩm đã xuất cho đơn này vào lại kho.',
+                })
+              }
+            >
+              Hủy đơn
+            </Button>
+          </div>
+        )}
+
+        {/* Cancelled actions */}
+        {order.status === 'cancelled' && (
           <Button
-            className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-xs text-sm"
-            onClick={() =>
-              setStatusConfirm({
-                open: true,
-                nextStatus: 'delivered',
-                label: 'Xác nhận đã giao hàng',
-                description:
-                  'Đơn hàng đã được giao tận tay khách hoặc khách đã đến lấy tại tiệm.',
-              })
-            }
+            type="button"
+            variant="outline"
+            className="w-full h-11 rounded-xl border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 font-bold text-sm gap-2"
+            onClick={() => setDeleteDialogOpen(true)}
           >
-            Đã giao hàng
+            <Trash2 className="w-4 h-4 text-red-600" />
+            <span>Xóa đơn hàng này</span>
           </Button>
         )}
 
@@ -1166,6 +1378,244 @@ ${
           onPaymentSuccess={fetchOrder}
         />
       )}
+
+      {/* 12. Delete Order Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="rounded-2xl max-w-sm">
+          <DialogHeader>
+            <div className="w-12 h-12 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto mb-2">
+              <Trash2 className="w-6 h-6" />
+            </div>
+            <DialogTitle className="text-center text-base font-bold text-gray-900">
+              Xóa đơn hàng {order?.code}?
+            </DialogTitle>
+            <DialogDescription className="text-center text-xs text-gray-600 pt-1 leading-relaxed">
+              Thao tác này sẽ xóa đơn hàng khỏi hệ thống và không thể hoàn tác. Bạn có chắc chắn muốn xóa?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-row gap-2 sm:justify-end pt-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 rounded-xl border-gray-200 text-xs font-semibold"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deletingOrder}
+            >
+              Giữ lại đơn
+            </Button>
+            <Button
+              type="button"
+              className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold gap-1 shadow-xs"
+              onClick={handleDeleteOrder}
+              disabled={deletingOrder}
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>{deletingOrder ? 'Đang xóa...' : 'Xóa đơn'}</span>
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* 13. Delivery Appointment Dialog */}
+      <Dialog open={deliveryDialogOpen} onOpenChange={setDeliveryDialogOpen}>
+        <DialogContent className="rounded-2xl max-w-md">
+          <form onSubmit={handleUpdateDelivery} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <Clock className="w-4 h-4 text-purple-600" />
+                <span>Hẹn ngày & giờ giao đơn hàng</span>
+              </DialogTitle>
+              <DialogDescription className="text-xs text-gray-600">
+                Cập nhật lịch hẹn giao hoặc nhận hoa cho khách hàng ({order?.code})
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3.5 py-1">
+              {/* Delivery Type selector */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-gray-700">
+                  Hình thức nhận hàng
+                </Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDeliveryForm((prev) => ({ ...prev, deliveryType: 'pickup' }))
+                    }
+                    className={`py-2.5 px-3 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all ${
+                      deliveryForm.deliveryType === 'pickup'
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Store className="w-4 h-4" />
+                    <span>Nhận tại tiệm</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDeliveryForm((prev) => ({ ...prev, deliveryType: 'ship' }))
+                    }
+                    className={`py-2.5 px-3 rounded-xl text-xs font-semibold border flex items-center justify-center gap-1.5 transition-all ${
+                      deliveryForm.deliveryType === 'ship'
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                        : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <Truck className="w-4 h-4" />
+                    <span>Giao hàng (Ship)</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Date & Time with quick chips */}
+              <div className="space-y-2 p-3 bg-purple-50/50 rounded-xl border border-purple-100">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-purple-950">
+                    Ngày hẹn & Giờ giao <span className="text-rose-500">*</span>
+                  </Label>
+                  <div className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const vn = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+                        setDeliveryForm((prev) => ({
+                          ...prev,
+                          deliveryDate: vn.toISOString().slice(0, 10),
+                        }));
+                      }}
+                      className="text-[10px] font-bold text-purple-700 bg-white border border-purple-200 px-2 py-0.5 rounded-md hover:bg-purple-100"
+                    >
+                      Hôm nay
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const vn = new Date(now.getTime() + (7 + 24) * 60 * 60 * 1000);
+                        setDeliveryForm((prev) => ({
+                          ...prev,
+                          deliveryDate: vn.toISOString().slice(0, 10),
+                        }));
+                      }}
+                      className="text-[10px] font-bold text-purple-700 bg-white border border-purple-200 px-2 py-0.5 rounded-md hover:bg-purple-100"
+                    >
+                      Ngày mai
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <Label className="text-[10px] text-gray-500 mb-1 block">Ngày hẹn</Label>
+                    <Input
+                      type="date"
+                      required
+                      value={deliveryForm.deliveryDate}
+                      onChange={(e) =>
+                        setDeliveryForm((prev) => ({ ...prev, deliveryDate: e.target.value }))
+                      }
+                      className="h-10 rounded-xl text-xs bg-white"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] text-gray-500 mb-1 block">Giờ hẹn</Label>
+                    <Input
+                      type="time"
+                      required
+                      value={deliveryForm.deliveryTime}
+                      onChange={(e) =>
+                        setDeliveryForm((prev) => ({ ...prev, deliveryTime: e.target.value }))
+                      }
+                      className="h-10 rounded-xl text-xs bg-white"
+                    />
+                  </div>
+                </div>
+
+                {/* Quick time chips */}
+                <div className="flex items-center gap-1.5 pt-1 overflow-x-auto no-scrollbar">
+                  <span className="text-[10px] text-gray-500 shrink-0">Chọn nhanh:</span>
+                  {['08:30', '10:00', '11:30', '14:00', '16:30', '18:00', '19:30'].map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() =>
+                        setDeliveryForm((prev) => ({ ...prev, deliveryTime: t }))
+                      }
+                      className={`text-[10px] px-2 py-0.5 rounded-md border font-semibold shrink-0 transition-colors ${
+                        deliveryForm.deliveryTime === t
+                          ? 'bg-purple-600 text-white border-purple-600'
+                          : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                      }`}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Shipping fee if ship */}
+              {deliveryForm.deliveryType === 'ship' && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold text-gray-700">
+                    Phí vận chuyển (₫)
+                  </Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="5000"
+                    value={deliveryForm.shippingFee || ''}
+                    placeholder="0"
+                    onChange={(e) =>
+                      setDeliveryForm((prev) => ({
+                        ...prev,
+                        shippingFee: Number(e.target.value) || 0,
+                      }))
+                    }
+                    className="h-10 rounded-xl text-sm"
+                  />
+                </div>
+              )}
+
+              {/* Ghi chú giao hàng */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold text-gray-700">
+                  Ghi chú giao hàng / Lời chúc
+                </Label>
+                <Input
+                  type="text"
+                  placeholder="VD: Giao trước 10h, bảo vệ nhận giúp, thiệp chúc mừng..."
+                  value={deliveryForm.note}
+                  onChange={(e) =>
+                    setDeliveryForm((prev) => ({ ...prev, note: e.target.value }))
+                  }
+                  className="h-10 rounded-xl text-xs"
+                />
+              </div>
+            </div>
+
+            <DialogFooter className="flex-row gap-2 sm:justify-end pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 rounded-xl border-gray-200 text-xs font-semibold"
+                onClick={() => setDeliveryDialogOpen(false)}
+                disabled={updatingDelivery}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs"
+                disabled={updatingDelivery}
+              >
+                {updatingDelivery ? 'Đang lưu...' : 'Lưu lịch giao'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
