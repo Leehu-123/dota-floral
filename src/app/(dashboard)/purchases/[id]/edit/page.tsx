@@ -16,6 +16,7 @@ import {
   X,
   Layers,
   Package,
+  PackagePlus,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,6 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { QuickCreateMaterialDialog, type CreatedMaterial } from '@/components/materials/quick-create-material-dialog';
 import { formatVND, formatQty } from '@/lib/format';
 import { MATERIAL_GROUPS, getLabel } from '@/lib/constants';
 import { normalizeVietnamese } from '@/lib/utils';
@@ -86,6 +88,10 @@ export default function EditPurchasePage() {
   const [activeLineIndexForSearch, setActiveLineIndexForSearch] = useState<number | null>(null);
   const [materialSearchQuery, setMaterialSearchQuery] = useState('');
   const [selectedGroupFilter, setSelectedGroupFilter] = useState('all');
+
+  // Quick Create Material Dialog State
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
+  const [initialMatName, setInitialMatName] = useState('');
 
   // Lines state
   const [lines, setLines] = useState<PurchaseLineForm[]>([]);
@@ -248,6 +254,43 @@ export default function EditPurchasePage() {
     });
 
     setSearchModalOpen(false);
+  };
+
+  // Callback when a new material is created on-the-fly
+  const handleMaterialCreated = (newMat: CreatedMaterial) => {
+    // Add to materials list so it's selectable & displayable immediately
+    const formattedMat: Material = {
+      id: newMat.id,
+      name: newMat.name,
+      group: newMat.group,
+      baseUnit: newMat.baseUnit,
+      purchaseUnit: newMat.purchaseUnit,
+      conversionFactor: newMat.conversionFactor,
+      currentStock: newMat.currentStock,
+      avgCost: newMat.avgCost,
+    };
+    setMaterials((prev) => [formattedMat, ...prev]);
+
+    // Automatically fill into the active line or the last line
+    const targetIdx =
+      activeLineIndexForSearch !== null
+        ? activeLineIndexForSearch
+        : lines.length - 1;
+
+    if (targetIdx >= 0 && targetIdx < lines.length) {
+      setLines((prev) => {
+        const next = [...prev];
+        next[targetIdx] = {
+          ...next[targetIdx],
+          materialId: newMat.id,
+        };
+        return next;
+      });
+    }
+
+    setSearchModalOpen(false);
+    setQuickCreateOpen(false);
+    toast.success(`Đã thêm & chọn "${newMat.name}" vào phiếu nhập`);
   };
 
   // Filtered materials inside modal
@@ -744,16 +787,31 @@ export default function EditPurchasePage() {
             );
           })}
 
-          {/* Add Line Button */}
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full h-12 rounded-xl border-dashed border-2 border-purple-300 text-purple-900 hover:bg-purple-50 hover:border-purple-400 gap-1.5 font-bold shadow-xs"
-            onClick={handleAddLine}
-          >
-            <Plus className="w-4 h-4 text-purple-700" />
-            <span>Thêm dòng nguyên liệu</span>
-          </Button>
+          {/* Add Line & Quick Create Material Buttons */}
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 h-12 rounded-xl border-dashed border-2 border-purple-300 text-purple-900 hover:bg-purple-50 hover:border-purple-400 gap-1.5 font-bold shadow-xs"
+              onClick={handleAddLine}
+            >
+              <Plus className="w-4 h-4 text-purple-700" />
+              <span>Thêm dòng nguyên liệu</span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-12 rounded-xl border-purple-200 bg-purple-50/70 hover:bg-purple-100 text-purple-900 gap-1.5 font-bold shadow-xs px-4"
+              onClick={() => {
+                setInitialMatName('');
+                setActiveLineIndexForSearch(lines.length - 1);
+                setQuickCreateOpen(true);
+              }}
+            >
+              <PackagePlus className="w-4 h-4 text-purple-700" />
+              <span>+ Tạo NVL mới</span>
+            </Button>
+          </div>
         </div>
 
         {/* Sticky Bottom Summary Bar */}
@@ -783,15 +841,27 @@ export default function EditPurchasePage() {
       {/* SEARCH MATERIAL MODAL */}
       <Dialog open={searchModalOpen} onOpenChange={setSearchModalOpen}>
         <DialogContent className="max-w-lg p-0 rounded-2xl overflow-hidden max-h-[85vh] flex flex-col">
-          <DialogHeader className="p-4 pb-2 border-b border-purple-100">
+          <DialogHeader className="p-4 pb-2 border-b border-purple-100 flex flex-row items-center justify-between space-y-0">
             <DialogTitle className="text-base font-black text-purple-950 flex items-center gap-2">
               <Search className="w-4 h-4 text-purple-600" />
               <span>Tìm & chọn nguyên liệu nhập</span>
             </DialogTitle>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setInitialMatName(materialSearchQuery.trim());
+                setQuickCreateOpen(true);
+              }}
+              className="h-8 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs gap-1 shadow-xs px-3"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Tạo NVL mới</span>
+            </Button>
           </DialogHeader>
 
           {/* Search Input Bar */}
-          <div className="p-4 pt-3 pb-2 space-y-3 border-b border-purple-100 bg-purple-50/40">
+          <div className="p-4 pt-3 pb-2 space-y-2.5 border-b border-purple-100 bg-purple-50/40">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-purple-600 pointer-events-none" />
               <Input
@@ -812,6 +882,28 @@ export default function EditPurchasePage() {
                 </button>
               )}
             </div>
+
+            {/* Quick action strip if search query is typed */}
+            {materialSearchQuery.trim() && (
+              <button
+                type="button"
+                onClick={() => {
+                  setInitialMatName(materialSearchQuery.trim());
+                  setQuickCreateOpen(true);
+                }}
+                className="w-full text-left p-2 px-3 rounded-xl bg-purple-100/80 hover:bg-purple-200/90 border border-purple-200 text-purple-950 text-xs font-semibold flex items-center justify-between transition-colors shadow-2xs"
+              >
+                <div className="flex items-center gap-2 truncate">
+                  <PackagePlus className="w-4 h-4 text-purple-700 shrink-0" />
+                  <span className="truncate">
+                    Chưa có nguyên liệu này? <strong>Tạo mới "{materialSearchQuery.trim()}"</strong>
+                  </span>
+                </div>
+                <span className="text-[11px] font-black text-purple-700 underline shrink-0">
+                  + Thêm ngay
+                </span>
+              </button>
+            )}
 
             {/* Category Filter Chips */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar text-xs">
@@ -853,13 +945,33 @@ export default function EditPurchasePage() {
                 Đang tải danh sách nguyên liệu...
               </div>
             ) : filteredMaterials.length === 0 ? (
-              <div className="p-8 text-center space-y-2">
-                <p className="text-sm font-bold text-gray-700">
-                  Không tìm thấy nguyên liệu nào khớp
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Thử tìm từ khóa khác hoặc chuyển danh mục
-                </p>
+              <div className="p-8 text-center space-y-3">
+                <div className="w-12 h-12 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center mx-auto">
+                  <PackagePlus className="w-6 h-6" />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-gray-800">
+                    Không tìm thấy nguyên liệu nào khớp
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {materialSearchQuery.trim()
+                      ? `Nguyên liệu "${materialSearchQuery.trim()}" chưa có trong danh mục.`
+                      : 'Bạn có thể tạo mới nguyên liệu ngay tại đây mà không cần rời trang.'}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setInitialMatName(materialSearchQuery.trim());
+                    setQuickCreateOpen(true);
+                  }}
+                  className="h-10 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs gap-1.5 shadow-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>
+                    Thêm mới {materialSearchQuery.trim() ? `"${materialSearchQuery.trim()}"` : 'nguyên liệu'}
+                  </span>
+                </Button>
               </div>
             ) : (
               filteredMaterials.map((m) => (
@@ -907,6 +1019,14 @@ export default function EditPurchasePage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* QUICK CREATE MATERIAL DIALOG */}
+      <QuickCreateMaterialDialog
+        open={quickCreateOpen}
+        onOpenChange={setQuickCreateOpen}
+        initialName={initialMatName}
+        onCreated={handleMaterialCreated}
+      />
     </div>
   );
 }
